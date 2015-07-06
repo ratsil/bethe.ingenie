@@ -1,0 +1,204 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>
+    </ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{14B3F9C3-F79C-4BF9-82BF-71A6AC9902EE}</ProjectGuid>
+    <ProjectTypeGuids>{349c5851-65df-11da-9384-00065b846f21};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>ingenie.web</RootNamespace>
+    <AssemblyName>ingenie.web</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <SccProjectName>
+    </SccProjectName>
+    <SccLocalPath>
+    </SccLocalPath>
+    <SccAuxPath>
+    </SccAuxPath>
+    <SccProvider>
+    </SccProvider>
+    <SilverlightApplicationList>{8FDA5655-C2F0-4227-BF1E-B9DB8B8B711D}|..\ingenie.management\ingenie.management.csproj|ClientBin|False,{8CE97A47-90D0-4F9A-BFBD-E8785C7D37A6}|..\..\replica\client\scr\scr.csproj|ClientBin|False,{A9646418-1BDB-4C7F-BB3E-DA1E9A1A98F6}|..\..\replica\client\presentation\presentation.csproj|ClientBin|False</SilverlightApplicationList>
+    <TargetFrameworkProfile />
+    <UseIISExpress>false</UseIISExpress>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <OldToolsVersion>4.0</OldToolsVersion>
+    <IISExpressSSLPort />
+    <IISExpressAnonymousAuthentication />
+    <IISExpressWindowsAuthentication />
+    <IISExpressUseClassicPipelineMode />
+    <UseGlobalApplicationHostFile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>\projects\!bin\$(SolutionName)\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>\projects\!obj\$(SolutionName)\$(MSBuildProjectName)\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>TRACE;DEBUG;LOCAL</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PackageAsSingleFile>false</PackageAsSingleFile>
+    <PublishDatabases>false</PublishDatabases>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>\projects\!bin\$(SolutionName)\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>\projects\!obj\$(SolutionName)\$(MSBuildProjectName)\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>LOCAL</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Runtime.Remoting" />
+    <Reference Include="System.Web.ApplicationServices" />
+    <Reference Include="System.Web.DynamicData" />
+    <Reference Include="System.Web.Entity" />
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Web.Services" />
+    <Reference Include="System.EnterpriseServices" />
+    <Reference Include="System.Xml.Linq" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="ClientBin\ingenie.management.xap" />
+    <Content Include="ClientBin\presentation.xap" />
+    <Content Include="ClientBin\scr.xap" />
+    <Content Include="index.html" />
+    <Content Include="presentation.html" />
+    <Content Include="services\Management.asmx" />
+    <Content Include="services\Prompter.asmx" />
+    <Content Include="services\Cues.asmx" />
+    <Content Include="services\Player.asmx" />
+    <Content Include="management.html" />
+    <Content Include="services\Preferences.asmx" />
+    <Content Include="preferences.xml">
+      <SubType>Designer</SubType>
+    </Content>
+    <Content Include="Silverlight.js" />
+    <Content Include="TimerPlayer.aspx" />
+    <Content Include="Web.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="lib\Advertisement.cs" />
+    <Compile Include="lib\Client.cs" />
+    <Compile Include="lib\Clip.cs" />
+    <Compile Include="lib\DBInteract.cs" />
+    <Compile Include="lib\GarbageCollector.cs" />
+    <Compile Include="lib\Logger.cs" />
+    <Compile Include="lib\PlaylistItem.cs" />
+    <Compile Include="services\Common.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="services\Management.asmx.cs">
+      <DependentUpon>Management.asmx</DependentUpon>
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="services\Prompter.asmx.cs">
+      <DependentUpon>Prompter.asmx</DependentUpon>
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="services\Cues.asmx.cs">
+      <DependentUpon>Cues.asmx</DependentUpon>
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="services\Player.asmx.cs">
+      <DependentUpon>Player.asmx</DependentUpon>
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="services\Preferences.asmx.cs">
+      <DependentUpon>Preferences.asmx</DependentUpon>
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="lib\Preferences.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="lib\Template.cs" />
+    <Compile Include="TimerPlayer.aspx.cs">
+      <DependentUpon>TimerPlayer.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="TimerPlayer.aspx.designer.cs">
+      <DependentUpon>TimerPlayer.aspx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Service References\" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\helpers\common\helpers.common\helpers.common.csproj">
+      <Project>{fbeba6dc-8ea6-49a9-8cb6-e4dd9d1512de}</Project>
+      <Name>helpers.common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\helpers\helpers.db\helpers.db.csproj">
+      <Project>{6D2E75AF-BC9F-43FE-9DD7-A0B687092364}</Project>
+      <Name>helpers.db</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\helpers\video\ffmpeg.net\ffmpeg.net.csproj">
+      <Project>{85BEEB90-91A9-4815-A695-89CA4C1D6D3E}</Project>
+      <Name>ffmpeg.net</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\!helpers\helpers.replica\helpers.replica.csproj">
+      <Project>{1F234A17-6AC8-4DD1-84E6-76C4B40994BF}</Project>
+      <Name>helpers.replica</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\InGenie.Userspace\ingenie.userspace.csproj">
+      <Project>{ED0986A8-4C34-49CA-9642-20EEDE2BA337}</Project>
+      <Name>ingenie.userspace</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
+    <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="'$(VSToolsPath)' != ''" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets" Condition="false" />
+  <ProjectExtensions>
+    <VisualStudio>
+      <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
+        <WebProjectProperties>
+          <UseIIS>True</UseIIS>
+          <AutoAssignPort>True</AutoAssignPort>
+          <DevelopmentServerPort>49762</DevelopmentServerPort>
+          <DevelopmentServerVPath>/</DevelopmentServerVPath>
+          <IISUrl>http://localhost/fake_ig</IISUrl>
+          <OverrideIISAppRootUrl>True</OverrideIISAppRootUrl>
+          <IISAppRootUrl>http://localhost/ig/</IISAppRootUrl>
+          <NTLMAuthentication>False</NTLMAuthentication>
+          <UseCustomServer>False</UseCustomServer>
+          <CustomServerUrl>
+          </CustomServerUrl>
+          <SaveServerSettingsInUserFile>False</SaveServerSettingsInUserFile>
+        </WebProjectProperties>
+      </FlavorProperties>
+    </VisualStudio>
+  </ProjectExtensions>
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

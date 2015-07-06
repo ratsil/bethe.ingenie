@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<preferences>
+	<btl cuda="true">
+		<device target="0" type="output" fps="25">
+			<audio rate="48000" channels="8" bits="16">true</audio>
+			<video format="pal" pixels="bgra" key="false">true</video>
+			<queue length="25">
+				<bias slip="7" delay="200">1</bias>
+			</queue>
+		</device>
+	</btl>
+	<ingenie>
+		<initiator>
+			<process name="ingenie.server" owner="replica" />
+			<blender path="C:/Program Files/Blender Foundation/Blender/blender.exe" tasks="d:/cache/initiator/" queue="5" />
+		</initiator>
+		<userspace server="127.0.0.1" />
+		<shared port="1238" />
+	</ingenie>
+	<helpers>
+		<pixelsmap>
+			<cuda version="21" />
+		</pixelsmap>
+		<common>
+			<logger>
+				<mail subject="CHANNEL" source="alerting@example.com" server="smtp.example.com" password="">
+					<targets>
+						<target level="warning">user1@example.com,user2@example.com</target>
+						<target level="error">user@example.com</target>
+						<target level="fatal">user@example.com</target>
+					</targets>
+				</mail>
+			</logger>
+		</common>
+	</helpers>
+</preferences>

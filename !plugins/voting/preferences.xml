@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<preferences>
+	<blender folder="d:/cues/blender/">
+		<mat blend="mat.blend" threads="16">
+			import bpy
+			import os
+			import shutil
+		</mat>
+		<votes blend="votes.blend" threads="16">
+			import bpy
+			import os
+			import shutil
+
+		</votes>
+	</blender>
+	<polls>
+		<poll name="">
+			<description></description>
+			<candidate name="" image=".jpg" description="" />
+			<candidate name="" image=".jpg" description="" />
+		</poll>
+	</polls>
+</preferences>

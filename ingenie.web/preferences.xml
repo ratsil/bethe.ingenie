@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<preferences>
+	<ingenie>
+		<web>
+			<clients>
+				<scr>
+					<presets>
+						<preset name="default" id="0" folder="" channel="" caption="" />
+					</presets>
+					<templates>
+						<masks channel="{channel}"  preset="{preset}" />
+						<template bind="playlist" file="Player Playlist">
+							<scale_video x="0" y="0" width="720" height="576" pixel_aspect_ratio="0.9375" />
+						</template>
+					</templates>
+					<automation frame_ms="40" stop_offset="100" file="d:/files/clip_stop_start.txt" />
+					<others queues_compensation="2" player_log="d:/cues/air/logs/" />
+				</scr>
+			</clients>
+		</web>
+		<userspace server="127.0.0.1" />
+		<shared port="1238" />
+	</ingenie>
+	<helpers>
+		<common>
+			<database server="db.channel.replica" port="5432" name="replica" user="replica_scr" password="" timeout="240" />
+			<logger>
+				<mail subject="CHANNEL" source="alerting@example.com" server="smtp.example.com" password="">
+					<targets>
+						<target level="warning">user1@example.com,user2@example.com</target>
+						<target level="error">user@example.com</target>
+						<target level="fatal">user@example.com</target>
+					</targets>
+				</mail>
+			</logger>
+		</common>
+	</helpers>
+</preferences>

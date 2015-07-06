@@ -1,0 +1,16 @@
+﻿<configuration>
+    <system.serviceModel>
+        <bindings>
+            <basicHttpBinding>
+                <binding name="ManagementSoap" maxBufferSize="2147483647" maxReceivedMessageSize="2147483647">
+                    <security mode="None" />
+                </binding>
+            </basicHttpBinding>
+        </bindings>
+        <client>
+            <endpoint address="http://management.video.replica/ig/services/Management.asmx"
+                binding="basicHttpBinding" bindingConfiguration="ManagementSoap"
+                contract="service.ManagementSoap" name="ManagementSoap" />
+        </client>
+    </system.serviceModel>
+</configuration>

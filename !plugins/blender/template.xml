@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<template>
+  <plugin file="d:/cues/blender/blender.dll" class="Blender">
+    <data effect="animation" blend="d:/cues/test.blend" threads="0" data="weather.yandex:1">
+      <!-- engine="CYCLES"  -->
+      import bpy
+      bpy.context.scene.objects.active = bpy.context.scene.objects['Text']
+      #bpy.data.objects("Text")   bpy.context.scene.objects['Text']
+      bpy.ops.object.editmode_toggle()
+      bpy.ops.font.delete()
+      bpy.ops.font.text_insert(text="Виталик ЧОРНЫЙ")
+      bpy.ops.object.editmode_toggle()
+      bpy.context.screen.scene = bpy.data.scenes[1]
+      bpy.ops.render.render(animation=True)
+    </data>
+  </plugin>
+</template>

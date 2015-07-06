@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="http://replica/ig/services/Cues.asmx" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" targetNamespace="http://replica/ig/services/Cues.asmx" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://replica/ig/services/Cues.asmx">
+      <s:element name="BaetylusEffectsInfoGet">
+        <s:complexType />
+      </s:element>
+      <s:element name="BaetylusEffectsInfoGetResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="BaetylusEffectsInfoGetResult" type="tns:ArrayOfEffectInfo" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfEffectInfo">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="EffectInfo" nillable="true" type="tns:EffectInfo" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="EffectInfo">
+        <s:sequence>
+          <s:element minOccurs="1" maxOccurs="1" name="nHashCode" type="s:int" />
+          <s:element minOccurs="0" maxOccurs="1" name="sName" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="sInfo" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="sType" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="sStatus" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="BaetylusEffectStop">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="aEffects" type="tns:ArrayOfEffectInfo" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="BaetylusEffectStopResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="BaetylusEffectStopResult" type="tns:ArrayOfInt" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfInt">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="int" type="s:int" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="RestartServices">
+        <s:complexType />
+      </s:element>
+      <s:element name="RestartServicesResponse">
+        <s:complexType />
+      </s:element>
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="BaetylusEffectsInfoGetSoapIn">
+    <wsdl:part name="parameters" element="tns:BaetylusEffectsInfoGet" />
+  </wsdl:message>
+  <wsdl:message name="BaetylusEffectsInfoGetSoapOut">
+    <wsdl:part name="parameters" element="tns:BaetylusEffectsInfoGetResponse" />
+  </wsdl:message>
+  <wsdl:message name="BaetylusEffectStopSoapIn">
+    <wsdl:part name="parameters" element="tns:BaetylusEffectStop" />
+  </wsdl:message>
+  <wsdl:message name="BaetylusEffectStopSoapOut">
+    <wsdl:part name="parameters" element="tns:BaetylusEffectStopResponse" />
+  </wsdl:message>
+  <wsdl:message name="RestartServicesSoapIn">
+    <wsdl:part name="parameters" element="tns:RestartServices" />
+  </wsdl:message>
+  <wsdl:message name="RestartServicesSoapOut">
+    <wsdl:part name="parameters" element="tns:RestartServicesResponse" />
+  </wsdl:message>
+  <wsdl:portType name="ManagementSoap">
+    <wsdl:operation name="BaetylusEffectsInfoGet">
+      <wsdl:input message="tns:BaetylusEffectsInfoGetSoapIn" />
+      <wsdl:output message="tns:BaetylusEffectsInfoGetSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="BaetylusEffectStop">
+      <wsdl:input message="tns:BaetylusEffectStopSoapIn" />
+      <wsdl:output message="tns:BaetylusEffectStopSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="RestartServices">
+      <wsdl:input message="tns:RestartServicesSoapIn" />
+      <wsdl:output message="tns:RestartServicesSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="ManagementSoap" type="tns:ManagementSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="BaetylusEffectsInfoGet">
+      <soap:operation soapAction="http://replica/ig/services/Cues.asmx/BaetylusEffectsInfoGet" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="BaetylusEffectStop">
+      <soap:operation soapAction="http://replica/ig/services/Cues.asmx/BaetylusEffectStop" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="RestartServices">
+      <soap:operation soapAction="http://replica/ig/services/Cues.asmx/RestartServices" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="ManagementSoap12" type="tns:ManagementSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="BaetylusEffectsInfoGet">
+      <soap12:operation soapAction="http://replica/ig/services/Cues.asmx/BaetylusEffectsInfoGet" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="BaetylusEffectStop">
+      <soap12:operation soapAction="http://replica/ig/services/Cues.asmx/BaetylusEffectStop" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="RestartServices">
+      <soap12:operation soapAction="http://replica/ig/services/Cues.asmx/RestartServices" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="Management">
+    <wsdl:port name="ManagementSoap" binding="tns:ManagementSoap">
+      <soap:address location="http://management.video.replica/ig/services/Management.asmx" />
+    </wsdl:port>
+    <wsdl:port name="ManagementSoap12" binding="tns:ManagementSoap12">
+      <soap12:address location="http://management.video.replica/ig/services/Management.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

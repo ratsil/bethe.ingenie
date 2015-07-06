@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<template>
+  <plugin file="d:/cues/chat/chat.dll" class="Chat">
+    <data release="false" type="linear" queue="21">
+      <!-- data@type  : 'live'or 'linear'. The default value is 'linear'-->
+      <vip>
+        <font size="20" name="MagistralC" />
+        <promos period="00:05:00">
+          <promo enabled="true">
+            <weeklyrange dayin="mon" timein="0:00:00" dayout="sun" timeout="23:59:59"/>
+            <text></text>
+          </promo>
+          <promo enabled="true">
+            <weeklyrange dayin="mon" timein="0:00:00" dayout="sun" timeout="23:59:59"/>
+            <text></text>
+          </promo>
+          <promo enabled="true">
+            <weeklyrange dayin="mon" timein="0:00:00" dayout="sun" timeout="23:59:59"/>
+            <text></text>
+          </promo>
+          <promo enabled="true">
+            <weeklyrange dayin="mon" timein="0:00:00" dayout="sun" timeout="23:59:59"/>
+            <text></text>
+          </promo>
+          <promo enabled="true">
+            <weeklyrange dayin="mon" timein="0:00:00" dayout="sun" timeout="23:59:59"/>
+            <text></text>
+          </promo>
+        </promos>
+      </vip>
+      <roll layer="200" speed="250">
+        <holds line="2" pause="5" />
+        <masks>
+          <single>d:/cues/chat/footages/masks/single</single>
+          <multi>d:/cues/chat/footages/masks/multi</multi>
+        </masks>
+        <size left="179" top="453" width="496" height="56" />
+        <common>
+          <font name="MagistralC" size="18" style="bold">
+            <color red="240" green="240" blue="240" />
+            <border width="3" />
+          </font>
+        </common>
+        <vip>
+          <font name="MagistralC" size="20" style="bold">
+            <color red="253" green="243" blue="5" />
+            <border width="3" />
+          </font>
+        </vip>
+        <promo>
+          <font name="MagistralC" size="19" style="bold">
+            <color red="255" green="100" blue="255" />
+            <border width="3" />
+          </font>
+        </promo>
+        <photo>
+          <font name="MagistralC" size="17" style="bold">
+            <color red="116" green="221" blue="247" />
+            <border width="1" />
+          </font>
+        </photo>
+      </roll>
+      <crawl layer="99" speed="50">
+        <size left="43" top="509" width="632" height="40" />
+        <font name="Arial" size="11" style="bold">
+          <color red="255" green="255" blue="255" />
+          <border width="1" />
+        </font>
+        <text></text>
+        <registration></registration>
+      </crawl>
+      <mat>
+        <badge layer="101">
+          <size left="43" top="453" width="136" height="123" />
+          <in>d:/cues/chat/footages/badge/in</in>
+          <loop>d:/cues/chat/footages/badge/loop</loop>
+          <out>d:/cues/chat/footages/badge/out</out>
+        </badge>
+        <show layer="100">
+          <size left="171" top="453" width="504" height="56" />
+          <loop>d:/cues/chat/footages/show/loop</loop>
+          <out>d:/cues/chat/footages/show/out</out>
+          <transition>d:/cues/chat/footages/show/transition</transition>
+          <standby>
+            <in>d:/cues/chat/footages/standby/in</in>
+            <loop>d:/cues/chat/footages/standby/loop</loop>
+            <out>d:/cues/chat/footages/standby/out</out>
+            <transition>d:/cues/chat/footages/standby/transition</transition>
+          </standby>
+        </show>
+
+      </mat>
+    </data>
+  </plugin>
+</template>

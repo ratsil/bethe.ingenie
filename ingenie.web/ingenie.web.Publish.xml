@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<publishData>
+  <publishProfile publishUrl="C:\projects\!publish\IG" deleteExistingFiles="False" ftpAnonymousLogin="False" ftpPassiveMode="True" msdeploySite="" msdeploySiteID="" msdeployRemoteSitePhysicalPath="" msdeployAllowUntrustedCertificate="False" msdeploySkipExtraFilesOnServer="True" msdeployMarkAsApp="False" profileName="ingenie.local" publishMethod="FileSystem" replaceMatchingFiles="True" userName="" savePWD="False" userPWD="" SelectedForPublish="True">
+    <file relUrl="Silverlight.js" publishTime="09/13/2011 20:58:59" />
+    <file relUrl="bin/helpers.common.globalization.dll" publishTime="04/14/2015 01:48:59" />
+    <file relUrl="services/Player.asmx" publishTime="04/20/2012 18:28:40" />
+    <file relUrl="management.html" publishTime="09/11/2011 21:57:01" />
+    <file relUrl="ClientBin/presentation.xap" publishTime="05/29/2015 17:09:02" />
+    <file relUrl="bin/ffmpeg.net.dll" publishTime="05/29/2015 17:08:50" />
+    <file relUrl="bin/helpers.db.pdb" publishTime="05/29/2015 17:08:49" />
+    <file relUrl="presentation.html" publishTime="05/23/2013 12:24:18" />
+    <file relUrl="bin/ingenie.userspace.pdb" publishTime="05/29/2015 17:08:51" />
+    <file relUrl="bin/helpers.common.dll" publishTime="04/27/2015 16:01:21" />
+    <file relUrl="index.html" publishTime="09/11/2011 21:55:38" />
+    <file relUrl="bin/helpers.db.dll" publishTime="05/29/2015 17:08:49" />
+    <file relUrl="bin/Mono.Security.dll" publishTime="09/01/2014 13:48:30" />
+    <file relUrl="services/Preferences.asmx" publishTime="04/20/2012 18:28:40" />
+    <file relUrl="TimerPlayer.aspx" publishTime="01/15/2014 13:30:18" />
+    <file relUrl="bin/InGenie.Web.dll" publishTime="05/29/2015 17:09:02" />
+    <file relUrl="bin/ingenie.web.pdb" publishTime="05/29/2015 17:09:02" />
+    <file relUrl="preferences.xml" publishTime="07/15/2014 16:59:31" />
+    <file relUrl="bin/ingenie.shared.dll" publishTime="05/29/2015 17:08:49" />
+    <file relUrl="bin/helpers.replica.pdb" publishTime="05/29/2015 17:08:51" />
+    <file relUrl="bin/ru-RU/helpers.common.globalization.resources.dll" publishTime="04/14/2015 01:48:59" />
+    <file relUrl="ClientBin/ingenie.management.xap" publishTime="05/29/2015 17:08:58" />
+    <file relUrl="bin/helpers.replica.dll" publishTime="05/29/2015 17:08:51" />
+    <file relUrl="bin/ingenie.shared.pdb" publishTime="05/29/2015 17:08:49" />
+    <file relUrl="bin/ffmpeg.net.pdb" publishTime="05/29/2015 17:08:49" />
+    <file relUrl="bin/Npgsql.dll" publishTime="09/01/2014 13:48:30" />
+    <file relUrl="services/Prompter.asmx" publishTime="04/20/2012 18:28:40" />
+    <file relUrl="services/Cues.asmx" publishTime="04/20/2012 18:28:40" />
+    <file relUrl="bin/ru-RU/helpers.replica.resources.dll" publishTime="05/29/2015 17:08:51" />
+    <file relUrl="Web.config" publishTime="11/13/2014 20:36:13" />
+    <file relUrl="bin/ingenie.userspace.dll" publishTime="05/29/2015 17:08:51" />
+    <file relUrl="bin/helpers.common.globalization.pdb" publishTime="04/14/2015 01:48:59" />
+    <file relUrl="ClientBin/scr.xap" publishTime="06/01/2015 04:48:41" />
+    <file relUrl="services/Management.asmx" publishTime="04/20/2012 18:28:40" />
+    <file relUrl="bin/helpers.common.pdb" publishTime="04/27/2015 16:01:21" />
+  </publishProfile>
+</publishData>
