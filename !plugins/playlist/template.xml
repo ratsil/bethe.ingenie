@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<template>
+  <plugin file="d:/cues/playlist/playlist.dll" class="Playlist">
+    <data>
+      <playlist layer="300" cuda="true">
+        <area left="0" top="0" width="1920" height="1080" />
+      </playlist>
+    </data>
+  </plugin>
+</template>

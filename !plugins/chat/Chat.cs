@@ -2,20 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Text;
-using System.Linq;
-using BTL;
-using BTL.Play;
-using System.Collections;
-using System.Diagnostics;
-using System.Xml;
-using System.Timers;
 using System.IO;
 using System.Threading;
-using ingenie;
 using helpers;
 using helpers.extensions;
 using helpers.replica.ia;
@@ -24,7 +12,7 @@ using helpers.replica.pl;
 
 namespace ingenie.plugins
 {
-    class DBInteract : helpers.replica.DBInteract
+	class DBInteract : helpers.replica.DBInteract
     {
         public DBInteract()
         {

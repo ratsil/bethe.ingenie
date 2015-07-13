@@ -102,9 +102,9 @@ namespace ingenie.plugins
         }
 
         private string _sWorkFolder;
-        static public DB.Credentials DBCredentials //TODO ������ ��� �������� ����� - ����� �� ����� ����� ��� ��� �������� �� ����� ������������
-        {
-            get
+		static public DB.Credentials DBCredentials //TODO убрать это свойство вапче - класс БД может брать все это напрямую из файла переференсов
+		{
+			get
             {
 				return new DB.Credentials()
 				{
