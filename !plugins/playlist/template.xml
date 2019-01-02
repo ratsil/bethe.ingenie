@@ -2,9 +2,10 @@
 <template>
   <plugin file="d:/cues/playlist/playlist.dll" class="Playlist">
     <data>
-      <playlist layer="300" cuda="true">
+      <playlist layer="300" cuda="true" id="{%MACRO::CUES::PLUGIN::PL::ID%}">
         <area left="0" top="0" width="1920" height="1080" />
       </playlist>
+			<database server="db.channel.replica" port="5432" name="replica" user="replica_cues" password="htgkbrfRm.p" timeout="240" />
     </data>
   </plugin>
 </template>

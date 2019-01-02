@@ -42,7 +42,7 @@ namespace ingenie.restart
 			try
 			{
 				ServiceController controller = new ServiceController();
-				controller.ServiceName = "InGenie.Initiator"; // i.e “w3svc”
+				controller.ServiceName = "ingenie.initiator"; // i.e “w3svc”
 				if (controller.Status != ServiceControllerStatus.Running)
 				{
 					controller.Start();

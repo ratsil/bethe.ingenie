@@ -131,13 +131,17 @@
       <Project>{fbeba6dc-8ea6-49a9-8cb6-e4dd9d1512de}</Project>
       <Name>helpers.common</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\helpers\helpers.db\helpers.db.csproj">
+      <Project>{6d2e75af-bc9f-43fe-9dd7-a0b687092364}</Project>
+      <Name>helpers.db</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\helpers\video\PixelsMap\PixelsMap.csproj">
       <Project>{31E66AA5-C483-4150-8AC0-6F0240F52029}</Project>
       <Name>PixelsMap</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\BTL\BTL.csproj">
       <Project>{06170AA8-16F3-4232-A799-4B181C7F9196}</Project>
-      <Name>BTL %28btl\BTL%29</Name>
+      <Name>BTL</Name>
     </ProjectReference>
     <ProjectReference Include="..\ingenie.shared\ingenie.shared.csproj">
       <Project>{75D0805C-A3EC-4DFE-B4DA-CCE4E5305CFC}</Project>

@@ -1,0 +1,337 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<template destroy="self">
+	<plugin file="/path/comingup.dll" class="Comingup">
+		<data video_prepare_delay="10" >   <!--deprecated?-->
+			<!--   ============================================  -->
+			<credits>
+				<data>
+					<roll layer="53" direction="Left" cuda="false" stop_on_empty="true" render_on_prepare="true" >
+						<offset x="140" y="123" />
+						<effects>
+							<text layer="5" duration="120" opacity="false" in_dissolve="0" out_dissolve="0" width_max="940" render_fields="true">
+								<show delay="0"/>
+								<offset x="0" y="14" />
+								<keyframes>
+									<keyframe type="linear" frame="1" position="575" />
+									<keyframe type="bezier" frame="12" position="575" control_point_frame="12" control_point_position="479" />
+									<keyframe type="bezier" frame="23" position="379" control_point_frame="17" control_point_position="379" />
+									<keyframe type="linear" frame="108" position="379" />
+									<keyframe type="bezier" frame="109" position="379"  control_point_frame="115" control_point_position="379" />
+									<keyframe type="bezier" frame="120" position="-131"  control_point_frame="120" control_point_position="-30" />
+								</keyframes>
+								<font name="Pancetta Pro" size="57" style="2">
+									<color alpha="255" red="255" green="255" blue="255" />
+									<border width="0">
+										<color alpha="200" red="0" green="0" blue="0"  />
+									</border>
+								</font>
+								<value>{%MACRO::REPLICA::PLI::CUES::ARTIST::CAPS%}</value>
+							</text>
+							<text layer="5" duration="120" opacity="false" in_dissolve="0" out_dissolve="0" width_max="940" render_fields="true">
+								<show delay="0"/>
+								<offset x="0" y="70" />
+								<keyframes>
+									<keyframe type="linear" frame="1" position="642" />
+									<keyframe type="bezier" frame="12" position="642" control_point_frame="12" control_point_position="509" />
+									<keyframe type="bezier" frame="23" position="374" control_point_frame="17" control_point_position="374" />
+									<keyframe type="linear" frame="106" position="374" />
+									<keyframe type="bezier" frame="107" position="374"  control_point_frame="113" control_point_position="374" />
+									<keyframe type="bezier" frame="120" position="-136"  control_point_frame="120" control_point_position="-33" />
+								</keyframes>
+								<font name="Pancetta Pro" size="41" style="2">
+									<color alpha="255" red="0" green="0" blue="0" />
+									<border width="0">
+										<color alpha="200" red="0" green="0" blue="0"  />
+									</border>
+								</font>
+								<value>{%MACRO::REPLICA::PLI::CUES::SONG::CAPS%}</value>
+							</text>
+							<animation name="back_1" layer="1" opacity="false" folder="/path/animation.zip" text_length="610" keep_alive="false" turn_off_queue="true" container_size="true" >
+								<offset x="0" y="0" />
+								<keyframes>
+									<keyframe type="hold" frame="0" position="0" />
+								</keyframes>
+							</animation>
+							<animation name="mask_1" layer="2" opacity="false" folder="/path/animation_mask.zip" keep_alive="false" turn_off_queue="true" mask_all_upper="true" >
+								<offset x="0" y="0" />
+								<keyframes>
+									<keyframe type="hold" frame="0" position="0" />
+								</keyframes>
+							</animation>
+							<animation name="back_2" layer="1" opacity="false" folder="/path/animation2.zip" text_length="948" keep_alive="false" turn_off_queue="true" container_size="true" >
+								<offset x="0" y="0" />
+								<keyframes>
+									<keyframe type="hold" frame="0" position="0" />
+								</keyframes>
+							</animation>
+							<animation name="mask_2" layer="2" opacity="false" folder="/path/animation2_mask.zip" keep_alive="false" turn_off_queue="true" mask_all_upper="true" >
+								<offset x="0" y="0" />
+								<keyframes>
+									<keyframe type="hold" frame="0" position="0" />
+								</keyframes>
+							</animation>
+						</effects>
+					</roll>
+				</data>
+			</credits>
+			<!--   ============================================  -->
+			<overlay_top layer="50" opacity="false" duration="1277" folder="/path/overlay.zip" keep_alive="true" >
+				<show delay="125"/>
+				<offset left="0" top="0" />
+			</overlay_top>
+			<!--   ============================================  -->
+			<overlay_bottom layer="50" opacity="false" folder="/path/overlay2.zip" keep_alive="true" >
+				<show delay="125"/>
+				<offset left="0" top="765" />
+			</overlay_bottom>
+			<!--   ============================================  -->
+			<hashtag layer="53" opacity="false" folder="/path/hashtag.zip" keep_alive="true" >
+				<show delay="125"/>
+				<offset left="140" top="123" />
+			</hashtag>
+			<!--   ============================================ 1  -->
+			<roll layer="53" direction="Left" cuda="false" stop_on_empty="true" render_on_prepare="true" >
+				<offset x="140" y="179" />
+				<show delay="135"/>
+				<effects>
+					<text layer="5" duration="141" opacity="false" in_dissolve="0" out_dissolve="0" width_max="880" render_fields="true">
+						<show delay="0"/>
+						<offset x="0" y="40" />
+						<keyframes>
+							<keyframe type="linear" frame="1" position="460" />
+							<keyframe type="bezier" frame="6" position="460" control_point_frame="6" control_point_position="630" />
+							<keyframe type="bezier" frame="16" position="735" control_point_frame="10" control_point_position="735" />
+							<keyframe type="linear" frame="131" position="735" />
+							<keyframe type="bezier" frame="132" position="735"  control_point_frame="137" control_point_position="735" />
+							<keyframe type="bezier" frame="141" position="640"  control_point_frame="141" control_point_position="700" />
+						</keyframes>
+						<font name="Pancetta Pro" size="59" style="2">
+							<color alpha="255" red="255" green="255" blue="255" />
+							<border width="0">
+								<color alpha="200" red="0" green="0" blue="0"  />
+							</border>
+						</font>
+						<value>{%MACRO::REPLICA::CU(+1)::CUES::ARTIST::CAPS%}</value>
+					</text>
+					<text layer="5" duration="141" opacity="false" in_dissolve="0" out_dissolve="0" width_max="880" render_fields="true">
+						<show delay="0"/>
+						<offset x="0" y="102" />
+						<keyframes>
+							<keyframe type="linear" frame="1" position="400" />
+							<keyframe type="bezier" frame="6" position="400" control_point_frame="6" control_point_position="630" />
+							<keyframe type="bezier" frame="16" position="730" control_point_frame="10" control_point_position="730" />
+							<keyframe type="linear" frame="131" position="730" />
+							<keyframe type="bezier" frame="132" position="730"  control_point_frame="137" control_point_position="730" />
+							<keyframe type="bezier" frame="141" position="600"  control_point_frame="141" control_point_position="700" />
+						</keyframes>
+						<font name="Pancetta Pro" size="43" style="2">
+							<color alpha="255" red="0" green="0" blue="0" />
+							<border width="0">
+								<color alpha="200" red="0" green="0" blue="0"  />
+							</border>
+						</font>
+						<value>{%MACRO::REPLICA::CU(+1)::CUES::SONG::CAPS%}</value>
+					</text>
+					<animation layer="3" opacity="false" folder="/path/mask_text.zip" keep_alive="false" turn_off_queue="true" mask_all_upper="true" >
+						<offset x="0" y="0" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+					</animation>
+					<animation layer="2" opacity="false" folder="/path/base.zip" keep_alive="false" turn_off_queue="true" container_size="true" >
+						<offset x="0" y="0" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+					</animation>
+					<video layer="1" opacity="false" file="{%MACRO::REPLICA::CU(+1)::MEDIA::FILE%}" start="100" duration="137" render_fields="false" crop_horizontal="20" crop_vertical="40" aspect_ratio="1.3" >
+						<channels />
+						<offset x="0" y="0" />
+						<size width="700" height="190" />
+						<show delay="4"/>
+						<keyframes>
+							<keyframe type="linear" frame="1" position="552" />
+							<keyframe type="linear" frame="2" position="341" />
+							<keyframe type="linear" frame="3" position="227" />
+							<keyframe type="linear" frame="4" position="156" />
+							<keyframe type="linear" frame="5" position="106" />
+							<keyframe type="linear" frame="6" position="71" />
+							<keyframe type="linear" frame="7" position="45" />
+							<keyframe type="linear" frame="8" position="27" />
+							<keyframe type="linear" frame="9" position="14" />
+							<keyframe type="linear" frame="10" position="5" />
+							<keyframe type="linear" frame="11" position="1" />
+							<keyframe type="linear" frame="12" position="0" />
+						</keyframes>
+						<mask layer="1" opacity="false" folder="/path/mask_video.zip" keep_alive="false" turn_off_queue="true" >
+							<offset x="0" y="0" />
+						</mask>
+					</video>
+				</effects>
+			</roll>
+			<!--   ============================================ 2  -->
+			<roll layer="53" direction="Left" cuda="false" stop_on_empty="true" render_on_prepare="true" >
+				<offset x="140" y="377" />
+				<show delay="139"/>
+				<effects>
+					<text layer="5" duration="141" opacity="false" in_dissolve="0" out_dissolve="0" width_max="880" render_fields="true">
+						<show delay="0"/>
+						<offset x="0" y="40" />
+						<keyframes>
+							<keyframe type="linear" frame="1" position="460" />
+							<keyframe type="bezier" frame="6" position="460" control_point_frame="6" control_point_position="630" />
+							<keyframe type="bezier" frame="16" position="735" control_point_frame="10" control_point_position="735" />
+							<keyframe type="linear" frame="131" position="735" />
+							<keyframe type="bezier" frame="132" position="735"  control_point_frame="137" control_point_position="735" />
+							<keyframe type="bezier" frame="141" position="640"  control_point_frame="141" control_point_position="700" />
+						</keyframes>
+						<font name="Pancetta Pro" size="59" style="2">
+							<color alpha="255" red="255" green="255" blue="255" />
+							<border width="0">
+								<color alpha="200" red="0" green="0" blue="0"  />
+							</border>
+						</font>
+						<value>{%MACRO::REPLICA::CU(+2)::CUES::ARTIST::CAPS%}</value>
+					</text>
+					<text layer="5" duration="141" opacity="false" in_dissolve="0" out_dissolve="0" width_max="880" render_fields="true">
+						<show delay="0"/>
+						<offset x="0" y="102" />
+						<keyframes>
+							<keyframe type="linear" frame="1" position="400" />
+							<keyframe type="bezier" frame="6" position="400" control_point_frame="6" control_point_position="630" />
+							<keyframe type="bezier" frame="16" position="730" control_point_frame="10" control_point_position="730" />
+							<keyframe type="linear" frame="131" position="730" />
+							<keyframe type="bezier" frame="132" position="730"  control_point_frame="137" control_point_position="730" />
+							<keyframe type="bezier" frame="141" position="600"  control_point_frame="141" control_point_position="700" />
+						</keyframes>
+						<font name="Pancetta Pro" size="43" style="2">
+							<color alpha="255" red="0" green="0" blue="0" />
+							<border width="0">
+								<color alpha="200" red="0" green="0" blue="0"  />
+							</border>
+						</font>
+						<value>{%MACRO::REPLICA::CU(+2)::CUES::SONG::CAPS%}</value>
+					</text>
+					<animation layer="3" opacity="false" folder="/path/mask_text.zip" keep_alive="false" turn_off_queue="true" mask_all_upper="true" >
+						<offset x="0" y="0" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+					</animation>
+					<animation layer="2" opacity="false" folder="/path/base.zip" keep_alive="false" turn_off_queue="true" container_size="true" >
+						<offset x="0" y="0" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+					</animation>
+					<video layer="1" opacity="false" file="{%MACRO::REPLICA::CU(+2)::MEDIA::FILE%}" start="100" duration="137" crop_horizontal="20" crop_vertical="40" aspect_ratio="1.3">
+						<channels />
+						<offset x="0" y="0" />
+						<size width="700" height="190" />
+						<show delay="4"/>
+						<keyframes>
+							<keyframe type="linear" frame="1" position="552" />
+							<keyframe type="linear" frame="2" position="341" />
+							<keyframe type="linear" frame="3" position="227" />
+							<keyframe type="linear" frame="4" position="156" />
+							<keyframe type="linear" frame="5" position="106" />
+							<keyframe type="linear" frame="6" position="71" />
+							<keyframe type="linear" frame="7" position="45" />
+							<keyframe type="linear" frame="8" position="27" />
+							<keyframe type="linear" frame="9" position="14" />
+							<keyframe type="linear" frame="10" position="5" />
+							<keyframe type="linear" frame="11" position="1" />
+							<keyframe type="linear" frame="12" position="0" />
+						</keyframes>
+						<mask layer="1" opacity="false" folder="/path/mask_video.zip" keep_alive="false" turn_off_queue="true" >
+							<offset x="0" y="0" />
+						</mask>
+					</video>
+				</effects>
+			</roll>
+			<!--   ============================================ 3  -->
+			<roll layer="53" direction="Left" cuda="false" stop_on_empty="true" render_on_prepare="true" >
+				<offset x="140" y="575" />
+				<show delay="143"/>
+				<effects>
+					<text layer="5" duration="141" opacity="false" in_dissolve="0" out_dissolve="0" width_max="880" render_fields="true">
+						<show delay="0"/>
+						<offset x="0" y="40" />
+						<keyframes>
+							<keyframe type="linear" frame="1" position="460" />
+							<keyframe type="bezier" frame="6" position="460" control_point_frame="6" control_point_position="630" />
+							<keyframe type="bezier" frame="16" position="735" control_point_frame="10" control_point_position="735" />
+							<keyframe type="linear" frame="131" position="735" />
+							<keyframe type="bezier" frame="132" position="735"  control_point_frame="137" control_point_position="735" />
+							<keyframe type="bezier" frame="141" position="640"  control_point_frame="141" control_point_position="700" />
+						</keyframes>
+						<font name="Pancetta Pro" size="59" style="2">
+							<color alpha="255" red="255" green="255" blue="255" />
+							<border width="0">
+								<color alpha="200" red="0" green="0" blue="0"  />
+							</border>
+						</font>
+						<value>{%MACRO::REPLICA::CU(+3)::CUES::ARTIST::CAPS%}</value>
+					</text>
+					<text layer="5" duration="141" opacity="false" in_dissolve="0" out_dissolve="0" width_max="880" render_fields="true">
+						<show delay="0"/>
+						<offset x="0" y="102" />
+						<keyframes>
+							<keyframe type="linear" frame="1" position="400" />
+							<keyframe type="bezier" frame="6" position="400" control_point_frame="6" control_point_position="630" />
+							<keyframe type="bezier" frame="16" position="730" control_point_frame="10" control_point_position="730" />
+							<keyframe type="linear" frame="131" position="730" />
+							<keyframe type="bezier" frame="132" position="730"  control_point_frame="137" control_point_position="730" />
+							<keyframe type="bezier" frame="141" position="600"  control_point_frame="141" control_point_position="700" />
+						</keyframes>
+						<font name="Pancetta Pro" size="43" style="2">
+							<color alpha="255" red="0" green="0" blue="0" />
+							<border width="0">
+								<color alpha="200" red="0" green="0" blue="0"  />
+							</border>
+						</font>
+						<value>{%MACRO::REPLICA::CU(+3)::CUES::SONG::CAPS%}</value>
+					</text>
+					<animation layer="3" opacity="false" folder="/path/mask_text.zip" keep_alive="false" turn_off_queue="true" mask_all_upper="true" >
+						<offset x="0" y="0" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+					</animation>
+					<animation layer="2" opacity="false" folder="/path/base.zip" keep_alive="false" turn_off_queue="true" container_size="true" >
+						<offset x="0" y="0" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+					</animation>
+					<video layer="1" opacity="false" file="{%MACRO::REPLICA::CU(+3)::MEDIA::FILE%}" start="100" duration="137" crop_horizontal="20" crop_vertical="40" aspect_ratio="1.3">
+						<channels />
+						<offset x="0" y="0" />
+						<size width="700" height="190" />
+						<show delay="4"/>
+						<keyframes>
+							<keyframe type="linear" frame="1" position="552" />
+							<keyframe type="linear" frame="2" position="341" />
+							<keyframe type="linear" frame="3" position="227" />
+							<keyframe type="linear" frame="4" position="156" />
+							<keyframe type="linear" frame="5" position="106" />
+							<keyframe type="linear" frame="6" position="71" />
+							<keyframe type="linear" frame="7" position="45" />
+							<keyframe type="linear" frame="8" position="27" />
+							<keyframe type="linear" frame="9" position="14" />
+							<keyframe type="linear" frame="10" position="5" />
+							<keyframe type="linear" frame="11" position="1" />
+							<keyframe type="linear" frame="12" position="0" />
+						</keyframes>
+						<mask layer="1" opacity="false" folder="/path/mask_video.zip" keep_alive="false" turn_off_queue="true" >
+							<offset x="0" y="0" />
+						</mask>
+					</video>
+				</effects>
+			</roll>
+			<!--   ============================================  -->
+		</data>
+	</plugin>
+</template>
+
+

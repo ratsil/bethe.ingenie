@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<template destroy="self">
+	<plugin file="/path/credits.dll" class="Credits">
+		<data>
+			<roll layer="53" direction="RightToLeft" duration="126" cuda="false" stop_on_empty="true" render_on_prepare="true" >
+				<offset x="140" y="123" />
+				<effects>
+					<text layer="5" duration="120" opacity="false" in_dissolve="0" out_dissolve="0" width_max="948" render_fields="true" shift_top="10" press_bot="-26">
+						<show delay="0"/>
+						<offset x="0" y="10" />
+						<keyframes>
+							<keyframe type="linear" frame="1" position="575" />
+							<keyframe type="bezier" frame="12" position="575" control_point_frame="12" control_point_position="479" />
+							<keyframe type="bezier" frame="23" position="379" control_point_frame="17" control_point_position="379" />
+							<keyframe type="linear" frame="108" position="379" />
+							<keyframe type="bezier" frame="109" position="379"  control_point_frame="115" control_point_position="379" />
+							<keyframe type="bezier" frame="120" position="-131"  control_point_frame="120" control_point_position="-30" />
+						</keyframes>
+						<font name="Pancetta Pro" size="57" style="0">
+							<color alpha="255" red="255" green="255" blue="255" />
+							<border width="0">
+								<color alpha="200" red="0" green="0" blue="0"  />
+							</border>
+						</font>
+						<value>TEXT1</value>
+					</text>
+					<text layer="5" duration="120" opacity="false" in_dissolve="0" out_dissolve="0" width_max="948" render_fields="false" shift_top="10" press_bot="10">
+						<show delay="0"/>
+						<offset x="4" y="74" />
+						<keyframes>
+							<keyframe type="linear" frame="1" position="642" />
+							<keyframe type="bezier" frame="12" position="642" control_point_frame="12" control_point_position="509" />
+							<keyframe type="bezier" frame="23" position="374" control_point_frame="17" control_point_position="374" />
+							<keyframe type="linear" frame="106" position="374" />
+							<keyframe type="bezier" frame="107" position="374"  control_point_frame="113" control_point_position="374" />
+							<keyframe type="bezier" frame="120" position="-136"  control_point_frame="120" control_point_position="-33" />
+						</keyframes>
+						<font name="Pancetta Pro" size="40" style="0">
+							<color alpha="255" red="0" green="0" blue="0" />
+							<border width="0">
+								<color alpha="200" red="0" green="0" blue="0"  />
+							</border>
+						</font>
+						<value>TEXT2</value>
+					</text>
+					<animation name="back_1" layer="1" opacity="false" folder="/path/animation1.zip" text_length="610" keep_alive="false" turn_off_queue="true" container_size="true" >
+						<offset x="0" y="0" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+
+					</animation>
+					<animation name="mask_1" layer="2" opacity="false" folder="/path/animation1_mask.zip" keep_alive="false" turn_off_queue="true" mask_all_upper="true" >
+						<offset x="0" y="0" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+					</animation>
+
+					<animation name="back_2" layer="1" opacity="false" folder="/path/animation2.zip" text_length="948" keep_alive="false" turn_off_queue="true" container_size="true" >
+						<offset x="0" y="0" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+					</animation>
+					<animation name="mask_2" layer="2" opacity="false" folder="/path/animation2_mask.zip" keep_alive="false" turn_off_queue="true" mask_all_upper="true" >
+						<offset x="0" y="0" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+					</animation>
+				</effects>
+			</roll>
+		</data>
+	</plugin>
+</template>

@@ -18,17 +18,27 @@ namespace ingenie.web.services
 			}
 		}
 		static protected object _cSyncRoot = new object();
+        static private string _sVersionOfXapScr;
 
-		public Common()
+
+        public Common()
 		{
 		}
 
 		[WebMethod(EnableSession = true)]
-		virtual public string Init(ulong nClientBrowserID)
+		virtual public string Init(ulong nClientBrowserID, string sVersionOfSCR)
 		{
 			(new Logger()).WriteWarning("________________INIT   begin");
-			string sRetVal = "";
-			(new Logger()).WriteDebug2("init [browser:" + nClientBrowserID + "][client:" + Client.nID + "][last:" + Client.dtPing + "]");
+            if (_sVersionOfXapScr == null)
+                _sVersionOfXapScr = helpers.replica.scr.XAP.GetVersionOfDll(@"ClientBin\scr.xap", @"ClientBin\scr.dll");
+            if (sVersionOfSCR != _sVersionOfXapScr)
+            {
+                (new Logger()).WriteError("init. client's version doesn't match [client=" + sVersionOfSCR + "][server=" + _sVersionOfXapScr + "]");
+                return "не совпадают версии SCR [client=" + sVersionOfSCR + "][server=" + _sVersionOfXapScr + "]";
+            }
+
+            string sRetVal = "";
+			(new Logger()).WriteDebug2("init [browser:" + nClientBrowserID + "][client:" + Client.nID + "][last:" + Client.dtPing + "][client_ver=" + sVersionOfSCR + "]");
 #if DEBUG
 			if (true)
 #else
@@ -58,7 +68,7 @@ namespace ingenie.web.services
 					cText.Stop();
 
 					(new Logger()).WriteDebug2("init:discom");
-					(new userspace.Helper()).DisComInit(); // взмолаживание сридов для просчета чата.
+					//(new userspace.Helper()).DisComInit(); // взмолаживание сридов для просчета чата.  // чат считается в устройстве из префов, так что это не всегда DisCom
 				}
 				catch (Exception ex)
 				{
@@ -70,7 +80,7 @@ namespace ingenie.web.services
 					GarbageCollector.Run();
 				}
 			}
-			(new Logger()).WriteWarning("________________INIT   end" + sRetVal);
+			(new Logger()).WriteWarning("________________INIT   end   " + sRetVal);
 			return sRetVal;
 		}
 

@@ -67,7 +67,8 @@ namespace ingenie.web.services
 			try
 			{
 				string sFileName = @"c:\Program Files\replica\ingenie\server\restart\restart";
-				System.IO.File.WriteAllText(sFileName, "");
+				if (System.IO.File.Exists(sFileName + "!"))
+					System.IO.File.Move(sFileName + "!", sFileName);
 			}
 			catch (Exception ex)
 			{

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
+using helpers.extensions;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 
@@ -125,8 +126,22 @@ namespace ingenie
 		private const uint MAXIMUM_ALLOWED = 0x2000000;
 		private const uint CREATE_NEW_CONSOLE = 0x00000010;
 
+        [DllImport("user32.dll")]
+        //[return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        private static extern bool SetFocus(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        internal static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
-		private static int LaunchProcessAsUser(string cmdLine, IntPtr token, IntPtr envBlock)
+        private static void SetFocusOnWindow(IntPtr pWindowHandle)
+        {
+            ShowWindow(pWindowHandle, 3); // 3==maximized
+            SetForegroundWindow(pWindowHandle);  //this.Handle
+            SetFocus(pWindowHandle);
+        }
+
+        private static int LaunchProcessAsUser(string cmdLine, IntPtr token, IntPtr envBlock, bool bHideConsole)
         {
             int nRetVal = -1;
 
@@ -151,8 +166,8 @@ namespace ingenie
 
 			si.lpDesktop = ""; //Modify as needed     // @"WinSta0\Default"
             si.dwFlags = STARTF_USESHOWWINDOW | STARTF_FORCEONFEEDBACK;
-			si.wShowWindow = SW_SHOW; //SW_HIDE SW_SHOW
-            //Set other si properties as required. 
+			si.wShowWindow = bHideConsole ? SW_HIDE : SW_SHOW; //SW_HIDE SW_SHOW
+															   //Set other si properties as required. 
 
 			if (!CreateProcessAsUser(token, null, cmdLine, ref saProcess, ref saThread, false, CREATE_UNICODE_ENVIRONMENT, envBlock, null, ref si, out pi))
 			{
@@ -247,7 +262,7 @@ namespace ingenie
             return envBlock;
         }
 
-		static public int Launch(string appCmdLine, int nProcessId)
+		static public int Launch(string appCmdLine, int nProcessId, bool bHideConsole)
         {
             int nRetVal = -1;
 			if (nProcessId > 1)
@@ -258,7 +273,7 @@ namespace ingenie
                 {
 
 					IntPtr envBlock = GetEnvironmentBlock(pToken);
-					nRetVal = LaunchProcessAsUser(appCmdLine, pToken, envBlock);
+					nRetVal = LaunchProcessAsUser(appCmdLine, pToken, envBlock, bHideConsole);
                     if (envBlock != IntPtr.Zero)
                         DestroyEnvironmentBlock(envBlock);
 
@@ -268,7 +283,144 @@ namespace ingenie
             }
 			return nRetVal;
         }
+        static public void SetFocusToProcess(Process cProcess)
+        {
+            //cProcess.Refresh();
+            //cProcess.WaitForInputIdle(); //this is the key!!    // not working - no window in LocalSystem user account if launched as another user!!!
+            //SetFocusOnWindow(cProcess.Handle);    // not working - no window in LocalSystem user account if launched as another user!!!
+        }
 
+        internal const int CTRL_C_EVENT = 0;
+        [DllImport("kernel32.dll")]
+        internal static extern bool GenerateConsoleCtrlEvent(uint dwCtrlEvent, uint dwProcessGroupId);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern bool AttachConsole(uint dwProcessId);
+        [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+        internal static extern bool FreeConsole();
+        [DllImport("kernel32.dll")]
+        static extern bool SetConsoleCtrlHandler(ConsoleCtrlDelegate HandlerRoutine, bool Add);
+        // Delegate type to be used as the Handler Routine for SCCH
+        delegate Boolean ConsoleCtrlDelegate(uint CtrlType);
+
+        static public bool KillProcess2(Process p) // NOT WORKED FOR ME  ((
+        {
+            if (AttachConsole((uint)p.Id))
+            {
+                (new helpers.Logger()).WriteNotice("AttachConsole");
+                SetConsoleCtrlHandler(null, true);
+                try
+                {
+                    if (!GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0))
+                    {
+                        (new helpers.Logger()).WriteNotice("false1");
+                        return false;
+                    }
+                    p.WaitForExit();
+                }
+                finally
+                {
+                    FreeConsole();
+                    SetConsoleCtrlHandler(null, false);
+                }
+                return true;
+            }
+            else
+            {
+                GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
+                (new helpers.Logger()).WriteNotice("GENERATE 2");
+            }
+            (new helpers.Logger()).WriteNotice("false2");
+            return false;
+        }
+        static public void KillProcess3(Process p)
+        {
+            int nPID = p.Id;
+            Process cmd = new Process();
+            cmd.StartInfo.FileName = "cmd.exe";
+            cmd.StartInfo.RedirectStandardInput = true;
+            cmd.StartInfo.RedirectStandardOutput = true;
+            cmd.StartInfo.CreateNoWindow = false;
+            cmd.StartInfo.UseShellExecute = true;
+            cmd.Start();
+
+            string strCmdText;
+            strCmdText = "taskkill /PID " + nPID;
+            (new helpers.Logger()).WriteNotice(strCmdText);
+            cmd.StandardInput.WriteLine(strCmdText);
+            System.Threading.Thread.Sleep(10000);
+            cmd.StandardInput.Flush();
+            cmd.StandardInput.Close();
+            cmd.WaitForExit();
+            Console.WriteLine(cmd.StandardOutput.ReadToEnd());
+        }
+        //START CMD.EXE /c "taskkill /PID 26120"
+
+        static public void KillProcess4(Process p) // работает, но только с форсом /F
+        {
+            int nPID = p.Id;
+            string strCmdText;
+            strCmdText = "taskkill /PID " + nPID + " /F";
+
+            System.Security.SecureString theSecureString = new System.Security.SecureString();
+            string sPass = "htgkbrf";
+            for (int nI = 0; nI < sPass.Length; nI++)
+                theSecureString.AppendChar(sPass[nI]);
+            ProcessStartInfo cProcessStartInfo = new ProcessStartInfo()
+            {
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+                UseShellExecute = false,
+                //UserName = "replica",   // это если нужно из-под юзера
+                //Password = theSecureString,
+                //Domain = "SAN",
+                //LoadUserProfile = true, //
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                FileName = "cmd.exe",
+                Arguments = "/c \"" + strCmdText + "\"",
+            };
+            string sMessage = "";
+            string sLogger = "<br>------------------- BEGIN -------------------<br>";
+            (new helpers.Logger()).WriteNotice("start [process=" + cProcessStartInfo.FileName + "][args=" + cProcessStartInfo.Arguments + "]");
+            Process cProcess = Process.Start(cProcessStartInfo);
+            cProcess.PriorityClass = ProcessPriorityClass.Normal;
+            //string sErrorMessage = "";
+            cProcess.OutputDataReceived += (sender, args) => sMessage += (args.Data.IsNullOrEmpty() ? "" : ConvertCp866Cp1251(args.Data) + "<br>");  // засирает поток и в итоге сильно замедляет работу
+            cProcess.ErrorDataReceived += (sender, args) => sMessage += (args.Data.IsNullOrEmpty() ? "" : ConvertCp866Cp1251(args.Data) + "<br>");// cLogger.WriteNotice("error<br>", args.Data);
+            cProcess.BeginErrorReadLine();
+            //string sTMP = cProcess.StandardOutput.ReadToEnd();
+            cProcess.BeginOutputReadLine();
+            cProcess.WaitForExit();
+            sLogger += sMessage + "<br>------------------- END -------------------";
+            (new helpers.Logger()).WriteNotice(sLogger);
+        }
+        static public void KillProcess(Process p, string sOwner)
+        {
+            System.Diagnostics.Process[] aExplorers = System.Diagnostics.Process.GetProcessesByName("explorer");
+            ingenie.initiator.Service.ProcessOwner cProcessOwner = null;
+            string strCmdText = "taskkill /PID " + p.Id;
+            string sArguments = "/c \"" + strCmdText + "\"";
+            foreach (System.Diagnostics.Process cExplorer in aExplorers)
+            {
+                cProcessOwner = ingenie.initiator.Service.ProcessTarget.GetProcessOwner(cExplorer.Id);
+                (new helpers.Logger()).WriteDebug2(cExplorer.Id + ":" + cProcessOwner.sUsername);
+                if (sOwner == cProcessOwner.sUsername)
+                {
+                    (new helpers.Logger()).WriteNotice("запуск cmd.exe " + sArguments);
+                    int nID = ProcessAsUser.Launch("\"cmd.exe\" " + sArguments, cExplorer.Id, true);
+                    break;
+                }
+            }
+        }
+        static public string ConvertCp866Cp1251(string line)
+        {
+            //string line = "¸ą¤®åą ­Øā«ģ";
+            if (line == null || line.Length == 0)
+                return "";
+            Encoding w1251 = Encoding.GetEncoding("windows-1251");
+            Encoding cp866 = Encoding.GetEncoding("CP866");
+            return cp866.GetString(w1251.GetBytes(line));
+        }
     }
 
 }

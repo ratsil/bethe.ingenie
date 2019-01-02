@@ -29,31 +29,170 @@ namespace ingenie.shared
             {
             }
         }
+        #region - File operations -
+        //TODO this is ig.web side!! ))  move operations to ig.server side  )))  (and move try-catch blocks)
         public bool FileExist(string sFileName)
         {
-            return System.IO.File.Exists(sFileName);
+            try
+            {
+                return System.IO.File.Exists(sFileName);
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+                return false;
+            }
         }
-		public string[] FileNamesGet(string sFolder, string[] aExtensions)
+        public bool FileDelete(string sFileName)
+        {
+            try
+            {
+                System.IO.File.Delete(sFileName);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError("[file=" + sFileName + "]", ex);
+                return false;
+            }
+        }
+        public string[] FileNamesGet(string sFolder, string[] aExtensions)
 		{
-			List<string> aResult = new List<string>();
-			System.IO.FileInfo[] aFiles;
-			System.IO.DirectoryInfo cDir = new System.IO.DirectoryInfo(sFolder);
-			foreach (string sExt in aExtensions)
+            try
+            {
+                List<string> aResult = new List<string>();
+                List<System.IO.FileInfo> aFiles = new List<System.IO.FileInfo>();
+                System.IO.DirectoryInfo cDir = new System.IO.DirectoryInfo(sFolder);
+                if (null == aExtensions)
+                {
+                    return cDir.GetFiles("*.*").OrderByDescending(o=>o.CreationTime).Select(o => o.Name).ToArray();
+                }
+
+                foreach (string sExt in aExtensions)
+                {
+                    aFiles.AddRange(cDir.GetFiles("*." + sExt));
+                }
+                return aFiles.OrderByDescending(o => o.CreationTime).Select(o => o.Name).ToArray();
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+                return new string[0];
+            }
+        }
+        public string[] DirectoriesNamesGet(string sFolder)
+        {
+            try
+            { 
+            List<string> aResult = new List<string>();
+            System.IO.DirectoryInfo[] aDirectories;
+            if (System.IO.Directory.Exists(sFolder))
+            {
+                System.IO.DirectoryInfo cDir = new System.IO.DirectoryInfo(sFolder);
+                aDirectories = cDir.GetDirectories();
+                aResult.AddRange(from cFInfo in aDirectories select cFInfo.Name);
+                return aResult.ToArray();
+            }
+            else
+                return null;
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError("[folder=" + sFolder + "]", ex);
+                return null;
+            }
+        }
+        public bool FileMove(string sSource, string sTarget)
+		{
+			try
 			{
-				aFiles = cDir.GetFiles("*." + sExt);
-				aResult.AddRange(from cFInfo in aFiles select cFInfo.Name);
+				System.IO.File.Move(sSource, sTarget);
+				return true;
 			}
-			return aResult.ToArray();
+			catch (Exception ex)
+			{
+				(new Logger()).WriteError("[src="+ sSource + "][trg=" + sTarget + "]", ex);
+				return false;
+			}
 		}
-		public string[] DirectoriesNamesGet(string sFolder)
+        public bool FileCreate(string sFile, string sText)
+        {
+            try
+            {
+                System.IO.File.WriteAllText(sFile, sText);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError("[file=" + sFile + "][txt=" + sText + "]", ex);
+                return false;
+            }
+        }
+        public bool FileCopy(string sSource, string sTarget)
 		{
-			List<string> aResult = new List<string>();
-			System.IO.DirectoryInfo[] aDirectories;
-			System.IO.DirectoryInfo cDir = new System.IO.DirectoryInfo(sFolder);
-			aDirectories = cDir.GetDirectories();
-			aResult.AddRange(from cFInfo in aDirectories select cFInfo.Name);
-			return aResult.ToArray();
+			try
+			{
+				System.IO.File.Copy(sSource, sTarget);
+				return true;
+			}
+			catch (Exception ex)
+			{
+                (new Logger()).WriteError("[src=" + sSource + "][trg=" + sTarget + "]", ex);
+                return false;
+			}
 		}
+
+        static private helpers.CopyFileExtended _cCurrentCopying;
+        public bool CopyFileExtendedCreate(string sSource, string sTarget, int nDelayMiliseconds, int nPeriodToDelayMiliseconds, long nFramesDur)
+        {
+            try
+            {
+                _cCurrentCopying = new helpers.CopyFileExtended(sSource, sTarget, nDelayMiliseconds, nPeriodToDelayMiliseconds, nFramesDur);  // медленное копирование 
+                return true;
+            }
+            catch (Exception ex)  // although throw goes to Player.asmx.cs!
+            {
+                (new Logger()).WriteError(ex);
+                return false;
+            }
+        }
+        public bool CopyFileExtendedDoCopy(bool bResetLastWriteTime)
+        {
+            try
+            {
+                return _cCurrentCopying.DoCopy(bResetLastWriteTime);
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+                return false;
+            }
+        }
+        public float CopyFileExtendedProgressPercentGet()
+        {
+            try
+            {
+                return _cCurrentCopying.nProgressPercent;
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+                return 0;
+            }
+        }
+        public bool CopyFileExtendedIsNull()
+        {
+            try
+            {
+                return null == _cCurrentCopying;
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+                return true;
+            }
+        }
+        #endregion
         #region - Management -
         #region . BaetylusEffectsInfoGet .
         public delegate List<EffectInfo> BaetylusEffectsInfoGetDelegate();
@@ -363,9 +502,17 @@ namespace ingenie.shared
 				(new Logger()).WriteError(ex);
 			}
 		}
-		#endregion
+        public delegate void CreateFromXmlDelegate(Effect cSender, string sXML);
+        static public event CreateFromXmlDelegate OnCreateFromXml;
+        public void Create(string sXML)
+        {
+            if (null == OnCreateFromXml)
+                throw new Exception("shared:text:create: отсутствует привязка к серверу объектов [hc:" + GetHashCode() + "]");
+            OnCreateFromXml(this, sXML);
+        }
+        #endregion
 
-		#region Prepare
+        #region Prepare
         public delegate bool PrepareDelegate(Effect cEffect);
         static public event PrepareDelegate OnPrepare;
         virtual public bool Prepare()
@@ -645,15 +792,15 @@ namespace ingenie.shared
     public class Animation : EffectVideo
     {
         #region Create
-		new public delegate void CreateDelegate(shared.Animation cAnimation, string sFolder, ushort nLoopsQty, bool bKeepAlive, helpers.Dock cDock, ushort nZ, bool bOpacity, ulong nDelay, float nPixelAspectRatio);
+		new public delegate void CreateDelegate(shared.Animation cAnimation, string sFolder, ushort nLoopsQty, bool bKeepAlive, helpers.Dock cDock, ushort nZ, bool bOpacity, ulong nDelay, float nPixelAspectRatio, bool bTurnOffQueue);
 		new static public event CreateDelegate OnCreate;
-		public void Create(string sFolder, ushort nLoopsQty, bool bKeepAlive, helpers.Dock cDock, ushort nZ, bool bOpacity, ulong nDelay, float nPixelAspectRatio)
+		public void Create(string sFolder, ushort nLoopsQty, bool bKeepAlive, helpers.Dock cDock, ushort nZ, bool bOpacity, ulong nDelay, float nPixelAspectRatio, bool bTurnOffQueue)
         {
 			if (null == OnCreate)
 				throw new Exception("shared:animation:create: отсутствует привязка к серверу объектов [hc:" + GetHashCode() + "]");
 			try
 			{
-				OnCreate(this, sFolder, nLoopsQty, bKeepAlive, cDock, nZ, bOpacity, nDelay, nPixelAspectRatio);
+				OnCreate(this, sFolder, nLoopsQty, bKeepAlive, cDock, nZ, bOpacity, nDelay, nPixelAspectRatio, bTurnOffQueue);
 			}
 			catch (Exception ex)
 			{
@@ -735,26 +882,53 @@ namespace ingenie.shared
                 throw new Exception("shared:playlist:items_delete: отсутствует привязка к серверу объектов [hc:" + GetHashCode() + "]");
             OnPLItemDelete(this, aEffectIDs);
         }
-        #endregion
-        #region EndTransDurationSet
-        public delegate void EndTransDurationSetDelegate(Playlist cPL, ushort nEndTransDuration);
-        static public event EndTransDurationSetDelegate OnEndTransDurationSet;
-        public void EndTransDurationSet(ushort nEndTransDuration)
-        {
-            if (null == OnEndTransDurationSet)
-                throw new Exception("shared:playlist:EndTransDurationSet: отсутствует привязка к серверу объектов [hc:" + GetHashCode() + "]");
-            OnEndTransDurationSet(this, nEndTransDuration);
-        }
-        #endregion
+		#endregion
+		#region EndTransDurationSet
+		public delegate void EndTransDurationSetDelegate(Playlist cPL, ushort nEndTransDuration);
+		static public event EndTransDurationSetDelegate OnEndTransDurationSet;
+		public void EndTransDurationSet(ushort nEndTransDuration)
+		{
+			if (null == OnEndTransDurationSet)
+				throw new Exception("shared:playlist:EndTransDurationSet: отсутствует привязка к серверу объектов [hc:" + GetHashCode() + "]");
+			OnEndTransDurationSet(this, nEndTransDuration);
+		}
+		#endregion
+	}
+    public class Composite : Container
+    {
+
     }
-	public class Roll : Container
+
+    public class Roll : Container
 	{
+		public class Keyframe : MarshalByRefObject
+		{
+			public enum Type
+			{
+				calculated = 0,
+				hold = 1,
+				linear = 2,
+				bezier = 3
+			}
+			public float nPosition;
+			public long nFrame;
+			public float nBesierControlPointFrames;
+			public float nBesierControlPointPixels;
+			public Type eType;
+			public Keyframe()
+			{
+			}
+		}
 		public enum Direction
 		{
 			LeftToRight,
 			RightToLeft,
 			UpToDown,
 			DownToUp
+		}
+		public Keyframe KeyframeMake(int nType, float nPosition, long nFrame, float сBesierControlPointFrames, float сBesierControlPointPixels)
+		{
+			return new Keyframe() { eType = (Keyframe.Type)nType, nFrame = nFrame, nPosition = nPosition, nBesierControlPointFrames = сBesierControlPointFrames, nBesierControlPointPixels = сBesierControlPointPixels };
 		}
 
 		public delegate Direction DirectionGetDelegate(Roll cSender);
@@ -829,19 +1003,19 @@ namespace ingenie.shared
 			}
 		}
 
-		public delegate void EffectAddDelegate(Roll cSender, Effect cEffect, float nSpeed);
+		public delegate void EffectAddDelegate(Roll cSender, Effect cEffect, float nSpeed, Keyframe[] aKeyframes, bool bWaitForEmptySpace, bool bIsMaskForAllUpper, ulong nDelay);
 		static public event EffectAddDelegate OnEffectAdd;
 		public void EffectAdd(Effect cEffect)
 		{
-			EffectAdd(cEffect, float.MaxValue);
+			EffectAdd(cEffect, float.MaxValue, null, false, false, 0);
 		}
-		public void EffectAdd(Effect cEffect, float nSpeed)
+		public void EffectAdd(Effect cEffect, float nSpeed, Keyframe[] aKeyframes, bool bWaitForEmptySpace, bool bIsMaskForAllUpper, ulong nDelay)
 		{
 			if (null == OnEffectAdd)
 				throw new Exception("shared:roll:effect:add: отсутствует привязка к серверу объектов [hc:" + GetHashCode() + "]");
 			try
 			{
-				OnEffectAdd(this, cEffect, nSpeed);
+				OnEffectAdd(this, cEffect, nSpeed, aKeyframes, bWaitForEmptySpace, bIsMaskForAllUpper, nDelay);
 			}
 			catch (Exception ex)
 			{

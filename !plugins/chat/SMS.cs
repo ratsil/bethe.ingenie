@@ -74,7 +74,7 @@ namespace ingenie.plugins
             public SMILE stSmile;
             private SMS _cSMS;
             private ushort _nMaxWidth;
-            public List<EffectVideo> GetEffect(SMS cSMS, ushort nMaxWidth)
+            public List<EffectVideo> GetEffects(SMS cSMS, ushort nMaxWidth)
             {
                 _cSMS = cSMS;
                 _nMaxWidth = nMaxWidth;
@@ -89,10 +89,8 @@ namespace ingenie.plugins
                         else
                         {
                             (new Logger()).WriteNotice("-------SMILE------ попытка создать Animation из смайла [" + stSmile.sText + "] не удалась. Смс вышла c текстовым смайлом.");
-                            cText = new BTL.Play.Text(stSmile.sText, cSMS.cPreferences.cFont, cSMS.cPreferences.nBorderWidth);
-                            cText.bCUDA = false;
-                            cText.stColor = SMILE.stTextSmileColor;
-                            cText.stColorBorder = cSMS.cPreferences.stBorderColor;
+                            cText = new BTL.Play.Text(stSmile.sText, cSMS.cPreferences.cFont, cSMS.cPreferences.nBorderWidth, SMILE.stTextSmileColor, cSMS.cPreferences.stBorderColor);
+                            //cText.bCUDA = false;
                             aRetVal.Add(cText);
                         }
                         return aRetVal;
@@ -103,16 +101,14 @@ namespace ingenie.plugins
                             (new Logger()).WriteError(new Exception("-------FLAG------ попытка получить Animation флага из SMS с телефоном [" + cSMS._sPhone + "] не удалась. Смс вышла без флага."));
                         return aRetVal;
                     case Type.text:
-                        cText = new BTL.Play.Text(sText, cSMS.cPreferences.cFont, cSMS.cPreferences.nBorderWidth);
-                        if (nMaxWidth < cText.stArea.nWidth)
+                        cText = new BTL.Play.Text(sText, cSMS.cPreferences.cFont, cSMS.cPreferences.nBorderWidth, cSMS.cPreferences.stColor, cSMS.cPreferences.stBorderColor, ushort.MaxValue, cSMS.cPreferences.nShiftTop, cSMS.cPreferences.nPressBottom);
+						if (nMaxWidth < cText.stArea.nWidth)
                         {
                             aRetVal.AddRange(SplitLongWord(sText));
                         }
                         else
                         {
-                            cText.bCUDA = false;
-                            cText.stColor = cSMS.cPreferences.stColor;
-                            cText.stColorBorder = cSMS.cPreferences.stBorderColor;
+                            //cText.bCUDA = false;
                             aRetVal.Add(cText);
                         }
                         return aRetVal;
@@ -144,20 +140,20 @@ namespace ingenie.plugins
             private List<EffectVideo> CutWord(string sText)
             {
                 List<EffectVideo> aRetVal = new List<EffectVideo>();
-                Text cText = new BTL.Play.Text(sText, _cSMS.cPreferences.cFont, _cSMS.cPreferences.nBorderWidth);
+                Text cText = new BTL.Play.Text(sText, _cSMS.cPreferences.cFont, _cSMS.cPreferences.nBorderWidth, _cSMS.cPreferences.stColor, _cSMS.cPreferences.stBorderColor);
                 Text cTextPrev = null; ;
                 int ni = 0, nk = 1;
                 if (_nMaxWidth < cText.stArea.nWidth)
                 {
                     while (ni + nk < sText.Length)
                     {
-                        cText = new BTL.Play.Text(sText.Substring(ni, nk), _cSMS.cPreferences.cFont, _cSMS.cPreferences.nBorderWidth);
-                        while (_nMaxWidth > cText.stArea.nWidth && (ni + nk < sText.Length))
+                        cText = new BTL.Play.Text(sText.Substring(ni, nk), _cSMS.cPreferences.cFont, _cSMS.cPreferences.nBorderWidth, _cSMS.cPreferences.stColor, _cSMS.cPreferences.stBorderColor);
+						while (_nMaxWidth > cText.stArea.nWidth && (ni + nk < sText.Length))
                         {
                             nk++;
                             cTextPrev = cText;
-                            cText = new BTL.Play.Text(sText.Substring(ni, nk), _cSMS.cPreferences.cFont, _cSMS.cPreferences.nBorderWidth);
-                        }
+                            cText = new BTL.Play.Text(sText.Substring(ni, nk), _cSMS.cPreferences.cFont, _cSMS.cPreferences.nBorderWidth, _cSMS.cPreferences.stColor, _cSMS.cPreferences.stBorderColor);
+						}
                         ni += nk - 1;
                         nk = 1;
                         if (ni + nk == sText.Length)
@@ -167,12 +163,10 @@ namespace ingenie.plugins
                 }
                 else
                     aRetVal.Add(cText);
-                foreach (Text cEff in aRetVal)
-                {
-                    cEff.bCUDA = false;
-                    cEff.stColor = _cSMS.cPreferences.stColor;
-                    cEff.stColorBorder = _cSMS.cPreferences.stBorderColor;
-                }
+                //foreach (Text cEff in aRetVal)
+                //{
+                //    cEff.bCUDA = false;
+                //}
                 return aRetVal;
             }
             static public List<Item> GetTextItems(string sText)
@@ -345,7 +339,14 @@ namespace ingenie.plugins
         }
         ~SMS()
         {
-            Dispose();
+            try
+            {
+                Dispose();
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
         }
 
         public void Dispose()
@@ -391,16 +392,16 @@ namespace ingenie.plugins
             int nPos = 0;
 			if (0 == _nWidthOfSpace)
 			{
-				_nWidthOfSpace = (ushort)(BTL.Play.Text.Measure("SSS SSS", cPreferences.cFont, 0).nWidth - BTL.Play.Text.Measure("SSSSSS", cPreferences.cFont, 0).nWidth);
-				if (cPreferences.cFont.Style == FontStyle.Italic)
-					_nWidthOfSpace = 0;    //(ushort)(cPreferences.cFont.Size / 6f + 0.5);
+				_nWidthOfSpace = BTL.Play.Text.SizeOfSpaceGet(cPreferences.cFont, 0).nWidth;
+				//if (cPreferences.cFont.Style == FontStyle.Italic)     // т.к. теперь измерение точное, то и в италике можно пробелить норм.
+				//	_nWidthOfSpace = 0;    //(ushort)(cPreferences.cFont.Size / 6f + 0.5);
 			}
             foreach (SMILE stSmile in aSmiles)
             {
                 aItems.AddRange(Item.GetTextItems(_sText.Substring(nPos, stSmile.stPosition.Start - nPos)));
                 aItems.Add(new Item() { eType = Item.Type.smile, stSmile = stSmile });
                 nPos = stSmile.stPosition.End;
-            }
+			}
             if (_sText.Length > nPos)
                 aItems.AddRange(Item.GetTextItems(_sText.Substring(nPos)));
             return _aSMSasEffects = MakeComposites(aItems, nMaxWidth);
@@ -414,13 +415,14 @@ namespace ingenie.plugins
             int nIndx = 0;
 
             foreach (Item cItem in aItems)
-                if (null != (aEff = cItem.GetEffect(this, nMaxWidth)))
+                if (null != (aEff = cItem.GetEffects(this, nMaxWidth)))
                     aEffectsInSMS.AddRange(aEff);
             Composite cTemp;
             while (nIndx < aEffectsInSMS.Count)
             {
                 cTemp = new Composite(nMaxWidth, Composite.Type.Vertical);
-				
+                cTemp.stMergingMethod = cPreferences.stMerging;
+
                 nIdent = 0;
                 while (true)
                 {
@@ -433,8 +435,7 @@ namespace ingenie.plugins
                     if (nIndx >= aEffectsInSMS.Count)
                         break;
                 }
-                cTemp.bCUDA = false;
-
+                //cTemp.bCUDA = ;
                 aRetVal.Add(cTemp);
             }
             return aRetVal;
@@ -448,7 +449,7 @@ namespace ingenie.plugins
         private Animation GetFlagAnim(string sFolder)
         {
             cAnim = new Animation(sFolder, 0, true);
-            cAnim.bCUDA = false;
+			cAnim.stMergingMethod = cPreferences.stMerging;
             cAnim.Prepare();
             return cAnim;
         }
@@ -548,8 +549,8 @@ namespace ingenie.plugins
                 sFolder = sWorkFolder + _ahSmilesBinds[sSml].ToString();
                 if (Directory.Exists(sFolder))
                 {
-                    cRetVal = new Animation(sFolder, 0);
-                    cRetVal.bCUDA = false;
+                    cRetVal = new Animation(sFolder, 0, true);
+                    //cRetVal.bCUDA = false;
                     cRetVal.Prepare();
                 }
             }
@@ -566,8 +567,8 @@ namespace ingenie.plugins
                     string sFolder = sWorkFolder + ni.Value.ToString();
                     if (Directory.Exists(sFolder))
                     {
-                        cAnimSmile = new Animation(sFolder, 0);
-                        cAnimSmile.bCUDA = false;
+                        cAnimSmile = new Animation(sFolder, 0, true);
+                        //cAnimSmile.bCUDA = false;
                         cAnimSmile.Prepare();
                         _ahSmilesAnimationBinds.Add(ni.Key, cAnimSmile);
                     }

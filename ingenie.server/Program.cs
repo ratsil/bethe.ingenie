@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Drawing;
 
+using System.Xml;
 using System.Threading;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
@@ -12,6 +13,7 @@ using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
 using helpers.extensions;
 using ingenie.plugins;
+using helpers;
 
 namespace ingenie.server
 {
@@ -19,31 +21,55 @@ namespace ingenie.server
     {
 		static Dictionary<shared.Effect, EffectCover> _ahEffects;
 		static Dictionary<shared.Effect, EffectCover> _ahEffectsRemoved;
+        static bool bFinished;
 
-		static void Main(string[] args)
+        private static bool DoOnAppTerminaion(ConsoleTerminaion.CtrlType eSignal)
         {
-			try
-			{
-				int nPID = System.Diagnostics.Process.GetCurrentProcess().Id;
+            (new Logger()).WriteNotice("External exiting console app due to external CTRL-C, or process kill, or shutdown [signal = " + eSignal + "]");
+            ConsoleTerminaion.exitSystem = true;
+
+            while (!bFinished)
+            {
+                System.Threading.Thread.Sleep(100);
+            }
+            (new Logger()).WriteNotice("Cleanup complete");
+            System.Threading.Thread.Sleep(2000);
+            Environment.Exit(-1);
+            return true;
+        }
+
+        static void Main(string[] args)
+        {
+            int nPID = -1;
+            try
+            {
+                nPID = System.Diagnostics.Process.GetCurrentProcess().Id;
 				if (0 < args.Length)
 					BTL.Preferences.sFile = AppDomain.CurrentDomain.BaseDirectory + args[0];
-				(new Logger()).WriteNotice("сервер объектов запущен [pid:" + nPID + "]");
 				if (!System.IO.File.Exists(BTL.Preferences.sFile))
 					throw new System.IO.FileNotFoundException("файл конфигурации не найден [pid:" + nPID + "][" + BTL.Preferences.sFile + "]");
-				(new Logger()).WriteNotice("файл конфигурации: [pid:" + nPID + "][" + BTL.Preferences.sFile + "]");
-				Environment.CurrentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                BTL.Preferences.Reload();
+                shared.Preferences.Reload();
+                Logger.sPreferencesFile = BTL.Preferences.sFile;
+                (new Logger()).WriteNotice("Begin");
+                ConsoleTerminaion._handler += new ConsoleTerminaion.EventHandler(DoOnAppTerminaion);
+                ConsoleTerminaion.SetConsoleCtrlHandler(ConsoleTerminaion._handler, true);
+                (new Logger()).WriteNotice("файл конфигурации: [pid:" + nPID + "][board_number=" + BTL.Preferences.nDeviceTarget + "][" + BTL.Preferences.sFile + "]");
+                (new Logger()).WriteNotice("register tcp channel (waiting for connection) [port:" + shared.Preferences.nPort + "]");
+
+                Environment.CurrentDirectory = AppDomain.CurrentDomain.BaseDirectory;
 				BinaryServerFormatterSinkProvider cBinaryServerFormatterSinkProvider = new BinaryServerFormatterSinkProvider();
 				cBinaryServerFormatterSinkProvider.TypeFilterLevel = System.Runtime.Serialization.Formatters.TypeFilterLevel.Full;
 				Dictionary<string, int> ahProperties = new Dictionary<string, int>();
 				ahProperties.Add("port", shared.Preferences.nPort);
 				ChannelServices.RegisterChannel(new TcpChannel(ahProperties, new BinaryClientFormatterSinkProvider(), cBinaryServerFormatterSinkProvider), false);
 
-				// Pass the properties for the port setting and the server provider in the server chain argument. (Client remains null here.)
-				//System.Runtime.Remoting.Channels.ChannelServices.RegisterChannel(new System.Runtime.Remoting.Channels.Tcp.TcpChannel(properties, null, provider), false);
+                // Pass the properties for the port setting and the server provider in the server chain argument. (Client remains null here.)
+                //System.Runtime.Remoting.Channels.ChannelServices.RegisterChannel(new System.Runtime.Remoting.Channels.Tcp.TcpChannel(properties, null, provider), false);
 
-                (new Logger()).WriteNotice("CUDA:" + (BTL.Preferences.bCUDA ? helpers.PixelsMap.Preferences.nCUDAVersion.ToString() : "NO"));
+                (new Logger()).WriteNotice("Merging Device " + BTL.Preferences.stMerging);
 
-				_ahEffects = new Dictionary<shared.Effect, EffectCover>();
+                _ahEffects = new Dictionary<shared.Effect, EffectCover>();
 				_ahEffectsRemoved = new Dictionary<shared.Effect, EffectCover>();
 				//RemotingConfiguration.RegisterWellKnownServiceType(typeof(shared.Animation), "Animation.soap", WellKnownObjectMode.Singleton);
 
@@ -61,9 +87,10 @@ namespace ingenie.server
 				#region device
 				shared.Device.OnDownStreamKeyerGet += Device_OnDownStreamKeyerGet;
 				shared.Device.OnDownStreamKeyerSet += Device_OnDownStreamKeyerSet;
-				#endregion
-				#region effect
-				shared.Effect.OnLayerGet += new shared.Effect.UShortGetDelegate(Effect_OnLayerGet);
+                #endregion
+                #region effect
+                shared.Effect.OnCreateFromXml += new shared.Effect.CreateFromXmlDelegate(EffectFromXmlCreate);
+                shared.Effect.OnLayerGet += new shared.Effect.UShortGetDelegate(Effect_OnLayerGet);
 				shared.Effect.OnLayerSet += new shared.Effect.UShortSetDelegate(Effect_OnLayerSet);
 				shared.Effect.OnFrameStartGet += new shared.Effect.ULongGetDelegate(Effect_OnFrameStartGet);
 				shared.Effect.OnFrameStartSet += new shared.Effect.ULongSetDelegate(Effect_OnFrameStartSet);
@@ -134,16 +161,26 @@ namespace ingenie.server
                 shared.Helper.OnBaetylusEffectStop += OnBaetylusEffectStop;
                 shared.Helper.OnDisComInit += Helper_OnDisComInit;
 
-				#region . GC .
-				DateTime dtReportNext = DateTime.Now.AddMinutes(10);
+                BTL.Baetylus cBTL = BTL.Baetylus.Helper.cBaetylus;
+                if (cBTL == null)
+                    throw new Exception("NO BTL OBJECT");
+
+                (new Logger()).WriteWarning("сервер объектов запущен [pid:" + nPID + "]");
+
+
+                DateTime dtReportNext = DateTime.Now.AddMinutes(10);
                 int nDeletingIdleDelay = 6000;  //в секундах
-                int nDeletingStopDelay = 30;  //в секундах
-				while (true)
+				int nDeletingPreparedDelay = 36000;  //в секундах
+				int nDeletingStopDelay = 30;  //в секундах
+				Logger.Timings cTimings = new helpers.Logger.Timings("program:main_worker");
+				int nLIndx = 0;
+				while (!ConsoleTerminaion.exitSystem)
 				{
 					try
 					{
-						(new Logger()).WriteDebug4("before lock");   // типа debu4 - это когда спам вообще на ровном месте ))... что же будет 9? )))
-						lock (_ahEffects)
+                        #region . GC .
+                        (new Logger()).WriteDebug4("before lock");   
+                        lock (_ahEffects)
 						{
 							(new Logger()).WriteDebug4("inside lock");
 							shared.Effect[] aEffectsShared = _ahEffects.Keys.ToArray();
@@ -151,9 +188,10 @@ namespace ingenie.server
 							{
 								string sMessage = "";
 								foreach (shared.Effect cEffectShared in aEffectsShared)
-									if (_ahEffects[cEffectShared].StatusIsOlderThen(3600))
-										sMessage += "<br>\t[ec:" + _ahEffects[cEffectShared].GetHashCode() + "][es:" + cEffectShared.GetHashCode() + "][name:" + _ahEffects[cEffectShared].sType + "][info:" + _ahEffects[cEffectShared].sInfo + "][status:" + _ahEffects[cEffectShared].eStatus + "]";
-								(new Logger()).WriteNotice("gc:effects:count:" + aEffectsShared.Length + "; timeworns:" + sMessage);
+                                    if (_ahEffects[cEffectShared].StatusIsOlderThen(3600))
+                                        sMessage += "<br>\t\t\t[ec:" + _ahEffects[cEffectShared].GetHashCode() + "][es:" + cEffectShared.GetHashCode() + "][name:" + _ahEffects[cEffectShared].sType + "][info:" + _ahEffects[cEffectShared].sInfo + "][status:" + _ahEffects[cEffectShared].eStatus + "]";
+                                if (sMessage.Length > 0)
+                                    (new Logger()).WriteNotice("gc:effects:count:" + aEffectsShared.Length + "; timeworns:" + sMessage);
 								dtReportNext = DateTime.Now.AddMinutes(10);
 							}
 							foreach (shared.Effect cEffectShared in aEffectsShared)
@@ -163,7 +201,7 @@ namespace ingenie.server
                                 if (
                                     _ahEffects[cEffectShared].StatusIsOlderThen(BTL.EffectStatus.Stopped, nDeletingStopDelay) ||
                                     _ahEffects[cEffectShared].StatusIsOlderThen(BTL.EffectStatus.Error, nDeletingStopDelay) ||
-									_ahEffects[cEffectShared].StatusIsOlderThen(BTL.EffectStatus.Preparing, nDeletingIdleDelay) ||
+									_ahEffects[cEffectShared].StatusIsOlderThen(BTL.EffectStatus.Preparing, nDeletingPreparedDelay) ||
 									_ahEffects[cEffectShared].StatusIsOlderThen(BTL.EffectStatus.Idle, nDeletingIdleDelay) ||
                                     _ahEffects[cEffectShared].StatusIsOlderThen(BTL.EffectStatus.Unknown, nDeletingIdleDelay)
 								)
@@ -178,7 +216,6 @@ namespace ingenie.server
 									_ahEffects.Remove(cEffectShared);
 								}
 							}
-//							GC.Collect();
 						}
 						foreach (shared.Effect cEffectShared in _ahEffectsRemoved.Keys.ToArray())
 						{
@@ -193,27 +230,35 @@ namespace ingenie.server
 							_ahEffectsRemoved.Remove(cEffectShared);
 							(new Logger()).WriteDebug3("gc:effect:remove:" + cEffectShared.GetHashCode());
 						}
-					}
-					catch (Exception ex)
+
+                        //GC.Collect
+                        #endregion
+                    }
+                    catch (Exception ex)
 					{
 						(new Logger()).WriteError(ex);
 					}
-					Thread.Sleep(3000);
+					Thread.Sleep(6000);
 				}
-				#endregion
 			}
 			catch (Exception ex)
 			{
 				(new Logger()).WriteError(ex);
+				System.Threading.Thread.Sleep(5000);
 			}
-			(new Logger()).WriteNotice("сервер объектов остановлен");
+            finally
+            {
+                bFinished = true;
+                (new Logger()).WriteWarning("сервер объектов остановлен [pid:" + nPID + "]");
+            }
 		}
 
         static void Helper_OnDisComInit()
         {
             try
             {
-                helpers.DisCom.Init();
+                // deprecated
+                //helpers.PixelsMap.DisComInit();
             }
             catch (Exception ex)
             {
@@ -222,10 +267,12 @@ namespace ingenie.server
         }
         public static EffectCover EffectCoverGet(BTL.Play.Effect cEffect)
         {
-            lock (_ahEffects)
-                return _ahEffects.Values.FirstOrDefault(row => row.oEffect == cEffect);
-        }
-        public static EffectCover EffectCoverGet(shared.Effect cEffect)
+			lock (_ahEffects)
+			{
+				return _ahEffects.Values.FirstOrDefault(row => null != row && row.oEffect == cEffect);   // бывает такое раз в недельку, что null, хотя это вроде бы невозможно из-за локов при создании эффектов. ХЗ.
+			}
+		}
+		public static EffectCover EffectCoverGet(shared.Effect cEffect)
         {
 			lock (_ahEffects)
 			{
@@ -245,7 +292,7 @@ namespace ingenie.server
                 List<BTL.Play.Effect> aBEffects = BTL.Baetylus.Helper.cBaetylus.BaetylusEffectsInfoGet();
                 foreach (BTL.Play.Effect cBEI in aBEffects) // выкидываем которых нет
                 {
-                    int nHC = cBEI.GetHashCode();
+                    int nHC = cBEI.nID;
                     if (!aHashes.Contains(nHC))
                     {
                         aRetVal.Add(nHC);
@@ -275,7 +322,7 @@ namespace ingenie.server
                 }
                 foreach (BTL.Play.Effect cBEI in aStopping)
                 {
-                    int nHC = cBEI.GetHashCode();
+                    int nHC = cBEI.nID;
                     aRetVal.Add(nHC);
                     (new Logger()).WriteNotice("попытка остановки эффекта [" + nHC + "] не удалась. Не получен статус 'Stopped' из-за таймаута");
                 }
@@ -300,9 +347,9 @@ namespace ingenie.server
                 {
                     cEffectCover = EffectCoverGet(cEffect);
                     if (null == cEffectCover)
-                        aRetVal.Add(new shared.Helper.EffectInfo() { nHashCode = cEffect.GetHashCode(), sInfo = "NULL", sStatus = cEffect.eStatus.ToString() });
+                        aRetVal.Add(new shared.Helper.EffectInfo() { nHashCode = cEffect.nID, sInfo = "NULL", sStatus = cEffect.eStatus.ToString() });
                     else
-                        aRetVal.Add(new shared.Helper.EffectInfo() { nHashCode = cEffectCover.oEffect.GetHashCode(), sInfo = cEffectCover.sInfo, sType = cEffectCover.sType, sStatus = ((BTL.Play.Effect)cEffectCover.oEffect).eStatus.ToString() });
+                        aRetVal.Add(new shared.Helper.EffectInfo() { nHashCode = cEffectCover.nEffectHashCode, sInfo = cEffectCover.sInfo, sType = cEffectCover.sType, sStatus = ((BTL.Play.Effect)cEffectCover.oEffect).eStatus.ToString() });
                 }
 				(new Logger()).WriteDebug3("return");
                 return aRetVal;
@@ -314,13 +361,13 @@ namespace ingenie.server
             }
         }
         #region device
-		static shared.Device.DownStreamKeyer Device_OnDownStreamKeyerGet()
+		static shared.Device.DownStreamKeyer Device_OnDownStreamKeyerGet()   //TODO  надо брать из борды через пайплайн
 		{
 			shared.Device.DownStreamKeyer cRetVal = null;
 			try
 			{
-				if(null != BTL.Preferences.cDownStreamKeyer)
-					cRetVal = new shared.Device.DownStreamKeyer() { nLevel = BTL.Preferences.cDownStreamKeyer.nLevel, bInternal = BTL.Preferences.cDownStreamKeyer.bInternal };
+				if(null != helpers.DownStreamKeyer.cDownStreamKeyer)
+					cRetVal = new shared.Device.DownStreamKeyer() { nLevel = helpers.DownStreamKeyer.cDownStreamKeyer.nLevel, bInternal = helpers.DownStreamKeyer.cDownStreamKeyer.bInternal };
 			}
 			catch (Exception ex)
 			{
@@ -328,19 +375,20 @@ namespace ingenie.server
 			}
 			return cRetVal;
 		}
-		static void Device_OnDownStreamKeyerSet(shared.Device.DownStreamKeyer cDownStreamKeyer)
-		{
+		static void Device_OnDownStreamKeyerSet(shared.Device.DownStreamKeyer cDownStreamKeyer)  //TODO  надо класть в борду через пайплайн
+        {
 			try
 			{
 				if (null != cDownStreamKeyer)
 				{
-					BTL.Preferences.cDownStreamKeyer = new BTL.Preferences.DownStreamKeyer();
-					BTL.Preferences.cDownStreamKeyer.nLevel = cDownStreamKeyer.nLevel;
-					BTL.Preferences.cDownStreamKeyer.bInternal = cDownStreamKeyer.bInternal;
+					helpers.DownStreamKeyer.cDownStreamKeyer = new helpers.DownStreamKeyer();
+					helpers.DownStreamKeyer.cDownStreamKeyer.nLevel = cDownStreamKeyer.nLevel;
+					helpers.DownStreamKeyer.cDownStreamKeyer.bInternal = cDownStreamKeyer.bInternal;
 				}
 				else
-					BTL.Preferences.cDownStreamKeyer = null;
-				BTL.Baetylus.Helper.cBoard.DownStreamKeyer();
+					helpers.DownStreamKeyer.cDownStreamKeyer = null;
+				// BTL.Baetylus.Helper.cBoard.DownStreamKeyer();   // отключил, т.к. надо через пайплайн теперь
+				(new Logger()).WriteDebug("DownStreamKeyer.set [level="+ cDownStreamKeyer.nLevel + "][internal="+ cDownStreamKeyer.bInternal + "]");
 			}
 			catch (Exception ex)
 			{
@@ -352,7 +400,7 @@ namespace ingenie.server
 		public static void OnEffectEvent(shared.EffectEventType eEventType, EffectCover cEffectCover)
 		{
 			Logger cLogger = new Logger();
-            cLogger.WriteDebug3("in [" + eEventType.ToString() + "]");
+			cLogger.WriteDebug3("in [" + eEventType.ToString() + "][hc_btl_ef=" + (cEffectCover == null ? "cover is NULL" : (cEffectCover.oEffect == null ? "NULL" : "" + cEffectCover.nEffectHashCode)) + "]");
 			try
 			{
 				if (null != cEffectCover)
@@ -380,8 +428,30 @@ namespace ingenie.server
 			}
 			cLogger.WriteDebug4("return [" + eEventType.ToString() + "]");
 		}
-
-		static ushort Effect_OnLayerGet(shared.Effect cSender)
+        static void EffectFromXmlCreate(shared.Effect cVideoShared, string sXML)
+        {
+            try
+            {
+                (new Logger()).WriteDebug3("in [hc:" + cVideoShared.GetHashCode() + "]");
+                XmlDocument cXmlDocument = new XmlDocument();
+                cXmlDocument.LoadXml(sXML);
+                XmlNode cXmlNode = cXmlDocument.NodesGet()[0];
+                BTL.Play.Effect cEffectBTL = BTL.Play.Effect.EffectGet(cXmlNode);
+                EffectCover cEffectCover = null;
+                lock (_ahEffects)
+                {
+                    EffectCreate(cVideoShared);
+                    _ahEffects[cVideoShared] = new EffectCover(cEffectBTL);
+                    cEffectCover = _ahEffects[cVideoShared];
+                }
+                (new Logger()).WriteDebug4("return [hc:" + cVideoShared.GetHashCode() + "]");
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
+        }
+        static ushort Effect_OnLayerGet(shared.Effect cSender)
 		{
 			ushort nRetVal = ushort.MaxValue;
 			try
@@ -509,7 +579,7 @@ namespace ingenie.server
 				EffectCover cEffectCover = EffectCoverGet(cSender);
 				if (null == cEffectCover)
 					throw new Exception("effect:frames:total:get: указанный объект не зарегистрирован на сервере [hc:" + cSender.GetHashCode() + "]");
-				nRetVal = ((BTL.Play.EffectVideo)cEffectCover.oEffect).nFramesTotal;
+				nRetVal = ((BTL.Play.Effect)cEffectCover.oEffect).nFramesTotal;
 			}
 			catch (Exception ex)
 			{
@@ -525,7 +595,7 @@ namespace ingenie.server
 				EffectCover cEffectCover = EffectCoverGet(cSender);
 				if (null == cEffectCover)
 					throw new Exception("effect:frame:current:get: указанный объект не зарегистрирован на сервере [hc:" + cSender.GetHashCode() + "]");
-				nRetVal = ((BTL.Play.EffectVideo)cEffectCover.oEffect).nFrameCurrent;
+				nRetVal = ((BTL.Play.Effect)cEffectCover.oEffect).nFrameCurrent;
 			}
 			catch (Exception ex)
 			{
@@ -787,7 +857,7 @@ namespace ingenie.server
 				EffectCover cEffectCover = EffectCoverGet(cSender);
 				if (null == cEffectCover)
 					throw new Exception("effect:layer:get: указанный объект не зарегистрирован на сервере [hc:" + cSender.GetHashCode() + "]");
-				bRetVal = ((BTL.Play.EffectVideo)cEffectCover.oEffect).bCUDA;
+                bRetVal = ((BTL.Play.EffectVideo)cEffectCover.oEffect).stMergingMethod.eDeviceType == helpers.MergingDevice.CUDA;
 			}
 			catch (Exception ex)
 			{
@@ -801,9 +871,9 @@ namespace ingenie.server
 			{
 				EffectCover cEffectCover = EffectCoverGet(cSender);
 				if (null == cEffectCover)
-					throw new Exception("effect:layer:set: указанный объект не зарегистрирован на сервере [hc:" + cSender.GetHashCode() + "]");
-				((BTL.Play.EffectVideo)cEffectCover.oEffect).bCUDA = nValue;
-			}
+                    throw new Exception("effect:layer:set: указанный объект не зарегистрирован на сервере [hc:" + cSender.GetHashCode() + "]");
+                ((BTL.Play.EffectVideo)cEffectCover.oEffect).stMergingMethod = nValue ? new helpers.MergingMethod(helpers.MergingDevice.CUDA, 0) : new helpers.MergingMethod(helpers.MergingDevice.DisCom, 0);
+            }
 			catch (Exception ex)
 			{
 				(new Logger()).WriteError(ex);
@@ -916,7 +986,7 @@ namespace ingenie.server
         #region create
 		static void EffectCreate(shared.Effect cEffect)
         {
-			(new Logger()).WriteDebug3("in [hc:" + cEffect.GetHashCode() + "]");
+			(new Logger()).WriteDebug3("in [hc_sh:" + cEffect.GetHashCode() + "]");
 			EffectCover cEffectCover = null;
 			lock (_ahEffects)
 			{
@@ -941,121 +1011,166 @@ namespace ingenie.server
 			}
 			(new Logger()).WriteDebug4("return [hc:" + cEffect.GetHashCode() + "]");
 		}
-		static void VideoCreate(shared.Video cVideoShared, string sFilename, helpers.Dock cDock, ushort nZ, ulong nFrameStart, ulong nDuration, bool bOpacity, ulong nDelay) //TODO убрать dock - его инициализация уже дублируется в userspace
+        static void VideoCreate(shared.Video cVideoShared, string sFilename, helpers.Dock cDock, ushort nZ, ulong nFrameStart, ulong nDuration, bool bOpacity, ulong nDelay) //TODO убрать dock - его инициализация уже дублируется в userspace
         {
-			BTL.Play.Video cVideoBTL = new BTL.Play.Video(sFilename);
-			EffectCover cEffectCover = null;
-			lock (_ahEffects)
-			{
-				EffectCreate(cVideoShared);
-				_ahEffects[cVideoShared] = new EffectCover(cVideoBTL);
-				cEffectCover = _ahEffects[cVideoShared];
-			}
-			cEffectCover.sType = "Video";
-			cEffectCover.sInfo = sFilename;
-            cVideoBTL.cDock = cDock;
-			cVideoBTL.nLayer = nZ;
-			cVideoBTL.nFrameStart = nFrameStart;
-			cVideoBTL.nDuration = nDuration;
-			cVideoBTL.bOpacity = bOpacity;
-			cVideoBTL.nDelay = nDelay;
+            try
+            {
+                (new Logger()).WriteDebug3("in [hc:" + cVideoShared.GetHashCode() + "]");
+                BTL.Play.Video cVideoBTL = new BTL.Play.Video(sFilename);
+                cVideoBTL.cDock = cDock;
+                cVideoBTL.nLayer = nZ;
+                cVideoBTL.nFrameStart = nFrameStart;
+                cVideoBTL.nDuration = nDuration;
+                cVideoBTL.bOpacity = bOpacity;
+                cVideoBTL.nDelay = nDelay;
+                EffectCover cEffectCover = null;
+                lock (_ahEffects)
+                {
+                    EffectCreate(cVideoShared);
+                    _ahEffects[cVideoShared] = new EffectCover(cVideoBTL);
+                    cEffectCover = _ahEffects[cVideoShared];
+                }
+                (new Logger()).WriteDebug4("return [hc:" + cVideoShared.GetHashCode() + "]");
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
         }
-		static void AudioCreate(shared.Audio cAudioShared, string sFilename)
+        static void AudioCreate(shared.Audio cAudioShared, string sFilename)
         {
-			BTL.Play.Audio cAudioBTL = new BTL.Play.Audio(sFilename);
-			EffectCover cEffectCover = null;
-			lock (_ahEffects)
-			{
-				EffectCreate(cAudioShared);
-				_ahEffects[cAudioShared] = new EffectCover(cAudioBTL);
-				cEffectCover = _ahEffects[cAudioShared];
-			}
-			cEffectCover.sType = "Audio";
-			cEffectCover.sInfo = sFilename;
+            try
+            {
+                (new Logger()).WriteDebug3("in [hc:" + cAudioShared.GetHashCode() + "]");
+                BTL.Play.Audio cAudioBTL = new BTL.Play.Audio(sFilename);
+                EffectCover cEffectCover = null;
+                lock (_ahEffects)
+                {
+                    EffectCreate(cAudioShared);
+                    _ahEffects[cAudioShared] = new EffectCover(cAudioBTL);
+                    cEffectCover = _ahEffects[cAudioShared];
+                }
+                (new Logger()).WriteDebug4("return [hc:" + cAudioShared.GetHashCode() + "]");
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
         }
-		static void AnimationCreate(shared.Animation cAnimationShared, string sFolder, ushort nLoopsQty, bool bKeepAlive, helpers.Dock cDock, ushort nZ, bool bOpacity, ulong nDelay, float nPixelAspectRatio)
-        {
-			(new Logger()).WriteDebug3("in [bKeepAlive:" + bKeepAlive + "]");
-			BTL.Play.Animation cAnimationBTL = new BTL.Play.Animation(sFolder, nLoopsQty, bKeepAlive);
-			EffectCover cEffectCover = null;
-			lock (_ahEffects)
-			{
-				EffectCreate(cAnimationShared);
-				_ahEffects[cAnimationShared] = new EffectCover(cAnimationBTL);
-				cEffectCover = _ahEffects[cAnimationShared];
-			}
-			cEffectCover.sType = "Animation";
-			cEffectCover.sInfo = sFolder;
-            cAnimationBTL.cDock = cDock;
-            cAnimationBTL.nLayer = nZ;
-			cAnimationBTL.bOpacity = bOpacity;
-			cAnimationBTL.nDelay = nDelay;
-			cAnimationBTL.nPixelAspectRatio = nPixelAspectRatio;
+        static void AnimationCreate(shared.Animation cAnimationShared, string sFolder, ushort nLoopsQty, bool bKeepAlive, helpers.Dock cDock, ushort nZ, bool bOpacity, ulong nDelay, float nPixelAspectRatio, bool bTurnOffQueue) 
+		{
+            try
+            {
+                BTL.Play.Animation cAnimationBTL = new BTL.Play.Animation(sFolder, nLoopsQty, bKeepAlive);
+                (new Logger()).WriteDebug3("in [bKeepAlive:" + bKeepAlive + "][hc_sh=" + cAnimationShared.GetHashCode() + "][hc_btl=" + cAnimationBTL.nID + "]");
+                cAnimationBTL.cDock = cDock;
+                cAnimationBTL.nLayer = nZ;
+                cAnimationBTL.bOpacity = bOpacity;
+                cAnimationBTL.nDelay = nDelay;
+                cAnimationBTL.nPixelAspectRatio = nPixelAspectRatio;
+                cAnimationBTL.bTurnOffQueue = bTurnOffQueue;
+                EffectCover cEffectCover = null;
+                lock (_ahEffects)
+                {
+                    EffectCreate(cAnimationShared);
+                    _ahEffects[cAnimationShared] = new EffectCover(cAnimationBTL);
+                    cEffectCover = _ahEffects[cAnimationShared];
+                }
+                (new Logger()).WriteDebug3("_ahEffects added [hc_btl=" + cAnimationBTL.nID + "][cover_added=" + (_ahEffects[cAnimationShared] == null ? "NULL" : "" + _ahEffects[cAnimationShared].GetHashCode()) + "]");
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
         }
-		static void TextCreate(shared.Text cTextShared, object[] aArgs) //EMERGENCY раскрыть массив в нормальные параметры!!!! 
+        static void TextCreate(shared.Text cTextShared, object[] aArgs) //EMERGENCY раскрыть массив в нормальные параметры!!!! 
         {
-			BTL.Play.Text cTextBTL = new BTL.Play.Text((string)aArgs[0], new Font((string)aArgs[1], (int)aArgs[2], (FontStyle)aArgs[3]), (float)aArgs[7]);
-			EffectCover cEffectCover = null;
-			lock (_ahEffects)
-			{
-				EffectCreate(cTextShared);
-				_ahEffects[cTextShared] = new EffectCover(cTextBTL);
-				cEffectCover = _ahEffects[cTextShared];
-			}
-			cEffectCover.sType = "Text";
-			cEffectCover.sInfo = (string)aArgs[0];
-
-			cTextBTL.stColor = Color.FromArgb((int)(byte)aArgs[19], (int)(byte)aArgs[4], (int)(byte)aArgs[5], (int)(byte)aArgs[6]);
-			cTextBTL.stColorBorder = Color.FromArgb((int)(byte)aArgs[20], (int)(byte)aArgs[8], (int)(byte)aArgs[9], (int)(byte)aArgs[10]);
-			cTextBTL.cDock = new helpers.Dock((helpers.Dock.Corner)aArgs[21], (short)aArgs[11], (short)aArgs[12]);
-			cTextBTL.nLayer = aArgs[13].ToUShort();
-            cTextBTL.nDelay = aArgs[14].ToULong();
-			cTextBTL.nDuration = aArgs[15].ToULong();
-            cTextBTL.bOpacity = (bool)aArgs[16];
-			cTextBTL.nInDissolve = (byte)aArgs[17];
-			cTextBTL.nOutDissolve = (byte)aArgs[18];
-			cTextBTL.nMaxOpacity = (byte)aArgs[19];
+            try
+            {
+                BTL.Play.Text cTextBTL = new BTL.Play.Text(
+                                                            (string)aArgs[0],
+                                                            new Font((string)aArgs[1], (int)aArgs[2], (FontStyle)aArgs[3]),
+                                                            (float)aArgs[7],
+                                                            Color.FromArgb((int)(byte)aArgs[19], (int)(byte)aArgs[4], (int)(byte)aArgs[5], (int)(byte)aArgs[6]),
+                                                            Color.FromArgb((int)(byte)aArgs[20], (int)(byte)aArgs[8], (int)(byte)aArgs[9], (int)(byte)aArgs[10]),
+                                                            (ushort)aArgs[22]
+                                                            );
+                cTextBTL.cDock = new helpers.Dock((helpers.Dock.Corner)aArgs[21], (short)aArgs[11], (short)aArgs[12]);
+                cTextBTL.nLayer = aArgs[13].ToUShort();
+                cTextBTL.nDelay = aArgs[14].ToULong();
+                cTextBTL.nDuration = aArgs[15].ToULong();
+                cTextBTL.bOpacity = (bool)aArgs[16];
+                cTextBTL.nInDissolve = (byte)aArgs[17];
+                cTextBTL.nOutDissolve = (byte)aArgs[18];
+                cTextBTL.nMaxOpacity = (byte)aArgs[19];
+                //cTextBTL.nHeightMax = (ushort)aArgs[23];
+                EffectCover cEffectCover = null;
+                lock (_ahEffects)
+                {
+                    EffectCreate(cTextShared);
+                    _ahEffects[cTextShared] = new EffectCover(cTextBTL);
+                    cEffectCover = _ahEffects[cTextShared];
+                }
+                (new Logger()).WriteNotice("text create in program with dock [left=" + cTextBTL.cDock.cOffset.nLeft + "][top=" + cTextBTL.cDock.cOffset.nTop + "]");
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
         }
-		static void ClockCreate(shared.Clock cClockShared, object[] aArgs) //EMERGENCY раскрыть массив в нормальные параметры!!!!
+        static void ClockCreate(shared.Clock cClockShared, object[] aArgs) //EMERGENCY раскрыть массив в нормальные параметры!!!!
         {
-			BTL.Play.Clock cClockBTL = new BTL.Play.Clock((string)aArgs[0], new Font((string)aArgs[1], (int)aArgs[2], (FontStyle)aArgs[3]), (float)aArgs[7]);
-			EffectCover cEffectCover = null;
-			lock (_ahEffects)
-			{
-				EffectCreate(cClockShared);
-				_ahEffects[cClockShared] = new EffectCover(cClockBTL);
-				cEffectCover = _ahEffects[cClockShared];
-			}
-			cEffectCover.sType = "Clock";
-			cEffectCover.sInfo = (string)aArgs[0];
-
-			cClockBTL.stColor = Color.FromArgb((int)(byte)aArgs[18], (int)(byte)aArgs[4], (int)(byte)aArgs[5], (int)(byte)aArgs[6]);
-			cClockBTL.stColorBorder = Color.FromArgb((int)(byte)aArgs[19], (int)(byte)aArgs[8], (int)(byte)aArgs[9], (int)(byte)aArgs[10]);
-			cClockBTL.cDock = new helpers.Dock((helpers.Dock.Corner)aArgs[20], (short)aArgs[11], (short)aArgs[12]);
-			cClockBTL.nLayer = aArgs[13].ToUShort();
-			cClockBTL.nDelay = aArgs[14].ToULong();
-			cClockBTL.nDuration = aArgs[15].ToULong();
-			cClockBTL.sSuffix = (string)aArgs[16];
-			cClockBTL.bOpacity = (bool)aArgs[17];
+            try
+            {
+                BTL.Play.Clock cClockBTL = new BTL.Play.Clock(
+                                                                (string)aArgs[0],
+                                                                new Font((string)aArgs[1], (int)aArgs[2], (FontStyle)aArgs[3]),
+                                                                (float)aArgs[7],
+                                                                Color.FromArgb((int)(byte)aArgs[18], (int)(byte)aArgs[4], (int)(byte)aArgs[5], (int)(byte)aArgs[6]),
+                                                                Color.FromArgb((int)(byte)aArgs[19], (int)(byte)aArgs[8], (int)(byte)aArgs[9], (int)(byte)aArgs[10])
+                                                                );
+                cClockBTL.cDock = new helpers.Dock((helpers.Dock.Corner)aArgs[20], (short)aArgs[11], (short)aArgs[12]);
+                cClockBTL.nLayer = aArgs[13].ToUShort();
+                cClockBTL.nDelay = aArgs[14].ToULong();
+                cClockBTL.nDuration = aArgs[15].ToULong();
+                cClockBTL.sSuffix = (string)aArgs[16];
+                cClockBTL.bOpacity = (bool)aArgs[17];
+                EffectCover cEffectCover = null;
+                lock (_ahEffects)
+                {
+                    EffectCreate(cClockShared);
+                    _ahEffects[cClockShared] = new EffectCover(cClockBTL);
+                    cEffectCover = _ahEffects[cClockShared];
+                }
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
         }
         static void PluginCreate(shared.Plugin cPlugin, string sFile, string sClass, string sData)
         {
-			Plugin cPluginBTL = new Plugin(sFile, sClass, sData);
-			EffectCover cEffectCover = null;
-			lock (_ahEffects)
-			{
-				EffectCreate(cPlugin);
-				_ahEffects[cPlugin] = new EffectCover(cPluginBTL);
-				cEffectCover = _ahEffects[cPlugin];
-			}
-			cEffectCover.sType = "Plugin";
-			cEffectCover.sInfo = sFile;
+            try
+            {
+                Plugin cPluginBTL = new Plugin(sFile, sClass, sData);
+                EffectCover cEffectCover = null;
+                lock (_ahEffects)
+                {
+                    EffectCreate(cPlugin);
+                    _ahEffects[cPlugin] = new EffectCover(cPluginBTL);
+                    cEffectCover = _ahEffects[cPlugin];
+                }
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
         }
-		#endregion
+        #endregion
         public static void OnContainerEvent(shared.ContainerEventType eEventType, EffectCover cContainer, EffectCover cEffect)
 		{
 			Logger cLogger = new Logger();
-			cLogger.WriteDebug3("in [" + eEventType.ToString() + "]");
+			cLogger.WriteDebug3("in [" + eEventType.ToString() + "][hc_cnt_btl=" + cContainer.nEffectHashCode + "][hc_eff_btl=" + (cEffect == null ? "NULL" : "" + cEffect.nEffectHashCode) + "]");
 			try
 			{
 				if (null != cContainer)
@@ -1086,7 +1201,8 @@ namespace ingenie.server
 							throw new Exception("container:event:" + eEventType.ToString() + ": указанный экземпляр контейнера не зарегистрирован на сервере [container ec hc:" + cContainer.GetHashCode() + "][effect ec hc:" + cEffect.GetHashCode() + "]");
 					}
 					else
-						throw new Exception("container:event:" + eEventType.ToString() + ": экземпляр эффекта не может быть null");
+                        cLogger.WriteDebug4("container:event:" + eEventType.ToString() + ":raise:after [container ec hc:" + cContainer.GetHashCode() + "][effect ec hc: NULL]");
+                        //throw new Exception("container:event:" + eEventType.ToString() + ": экземпляр эффекта не может быть null");  // может быть null, если нам не нужен эвент от него (если xml эффект)
 				}
 				else
 					throw new Exception("container:event:" + eEventType.ToString() + ": экземпляр контейнера не может быть null");
@@ -1106,22 +1222,17 @@ namespace ingenie.server
             try
             {
 				BTL.Play.Playlist cPlaylist = new BTL.Play.Playlist();
-				EffectCover cEffectCover = null;
+                cPlaylist.cDock = cDock;
+                cPlaylist.nLayer = nZ;
+                cPlaylist.bStopOnEmpty = bStopOnEmpty;
+                cPlaylist.bOpacity = bOpacity;
+                cPlaylist.nDelay = nDelay;
+                EffectCover cEffectCover = null;
 				lock (_ahEffects)
 				{
 					_ahEffects[cPlaylistShared] = new EffectCover(cPlaylist);
 					cEffectCover = _ahEffects[cPlaylistShared];
 				}
-				cEffectCover.sType = "Playlist";
-				cEffectCover.sInfo = "x=" + cDock.cOffset.nLeft + ", y=" + cDock.cOffset.nTop;
-
-				cPlaylist.cDock = cDock;
-				cPlaylist.nLayer = nZ;
-				cPlaylist.bStopOnEmpty = bStopOnEmpty;
-				cPlaylist.bOpacity = bOpacity;
-				cPlaylist.nDelay = nDelay;
-				cPlaylist.oTag = cPlaylistShared;  //EMERGENCY это что за хрень???????? Tag не использовать нигде!!!! кроме пользовательского фронтенда!!!!!
-				cPlaylist.OnPlaylistIsEmpty += new BTL.Play.Playlist.PlaylistIsEmpty(OnPlaylistIsEmpty);
             }
             catch (Exception ex)
             {
@@ -1129,22 +1240,6 @@ namespace ingenie.server
             }
 			(new Logger()).WriteDebug4("return [hc:" + cPlaylistShared.GetHashCode() + "]");
 		}
-
-		static void OnPlaylistIsEmpty(BTL.Play.Playlist cPlaylist)
-        {// Плейлист сам стопится, если он bStopOnEmpty....
-            //KeyValuePair<shared.Effect, EffectCover> ahCurrent;
-            //try
-            //{
-            //    lock (_ahEffects)
-            //        ahCurrent = _ahEffects.First(o => o.Value.oEffect is BTL.Play.Effect && ((BTL.Play.Effect)o.Value.oEffect) == cEffect);
-            //    ahCurrent.Value.Stop();
-            //}
-            //catch (Exception ex)
-            //{
-            //    (new Logger()).WriteError(ex);
-            //}
-		}
-
 		static void PlaylistAddEffect(shared.Playlist cPL, shared.Effect cEffect, ushort nTransDur)
 		{
 			EffectCover cEffectCover = null;
@@ -1162,7 +1257,9 @@ namespace ingenie.server
 					else
 						throw new Exception("playlist:add:effect: добавляемый эффект не зарегистрирован на сервере  [hcPL:" + cPL.GetHashCode() + "] [hceff:" + cEffect.GetHashCode() + "]");
 				}
+				(new Logger()).WriteDebug3("pl_adds_effect: [hc_sh:" + cEffect.GetHashCode() + "]");
 				((BTL.Play.Playlist)cEffectCover.oEffect).EffectAdd((BTL.Play.Effect)cEffectToAdd.oEffect, nTransDur);
+				cEffectToAdd.cEffectParrent = cEffectCover;
 			}
 			catch (Exception ex)
 			{
@@ -1227,9 +1324,9 @@ namespace ingenie.server
 						cEffectCover = _ahEffects[cPL];
 					else
 						throw new Exception("playlist:items_delete: отсутствует указанный объект плейлиста [hc:" + cPL.GetHashCode() + "]");
-				}
-				int[] aIDs = _ahEffects.Where(o => aEffects.Contains(o.Key)).Select(o => o.Value.oEffect.GetHashCode()).ToArray();
-				((BTL.Play.Playlist)cEffectCover.oEffect).PLItemsDelete(aIDs);
+                }
+                int[] aIDs = _ahEffects.Where(o => aEffects.Contains(o.Key)).Select(o => ((BTL.Play.Effect)o.Value.oEffect).nID).ToArray();
+                ((BTL.Play.Playlist)cEffectCover.oEffect).PLItemsDelete(aIDs);
             }
             catch (Exception ex)
             {
@@ -1252,14 +1349,6 @@ namespace ingenie.server
 					_ahEffects[cSender] = new EffectCover(cRoll);
 					cEffectCover = _ahEffects[cSender];
 				}
-				cEffectCover.sType = "Roll";
-				cEffectCover.sInfo = "x=" + cRoll.stArea.nLeft + ", y=" + cRoll.stArea.nTop;
-
-				//cRoll.cDock = cDock;
-				//cRoll.nLayer = nZ;
-				//cRoll.bOpacity = bOpacity;
-				//cRoll.nDelay = nDelay;
-				//cRoll.cTag = cSender; //EMERGENCY это что за хрень???????? Tag не использовать нигде!!!! кроме пользовательского фронтенда!!!!!
             }
             catch (Exception ex)
             {
@@ -1374,7 +1463,7 @@ namespace ingenie.server
 				(new Logger()).WriteError(ex);
 			}
 		}
-		static void Roll_OnEffectAdd(shared.Roll cSender, shared.Effect cEffect, float nSpeed)
+		static void Roll_OnEffectAdd(shared.Roll cSender, shared.Effect cEffect, float nSpeed, shared.Roll.Keyframe[] aKeyframes, bool bWaitForEmptySpace, bool bIsMaskForAllUpper, ulong nDelay)
 		{
 			try
 			{
@@ -1384,7 +1473,22 @@ namespace ingenie.server
 				EffectCover cEffectCover = EffectCoverGet(cEffect);
 				if (null == cEffectCover)
 					throw new Exception("roll:effect:add: указанный объект [effect] не зарегистрирован на сервере [hc:" + cEffect.GetHashCode() + "]");
-				((BTL.Play.Roll)cEffectCoverSender.oEffect).EffectAdd((BTL.IVideo)cEffectCover.oEffect, nSpeed);
+				if (null == aKeyframes)
+					((BTL.Play.Roll)cEffectCoverSender.oEffect).EffectAdd((BTL.IVideo)cEffectCover.oEffect, nSpeed);
+				else
+				{
+					BTL.Play.Roll.Keyframe[] aKFs = new BTL.Play.Roll.Keyframe[aKeyframes.Length];
+					for (int nI = 0; nI < aKeyframes.Length; nI++)
+						aKFs[nI] = new BTL.Play.Roll.Keyframe()
+						{
+							eType = (BTL.Play.Roll.Keyframe.Type)aKeyframes[nI].eType,
+							nFrame = aKeyframes[nI].nFrame,
+							nPosition = aKeyframes[nI].nPosition,
+							cBesierControlPoint = new BTL.Play.Roll.Keyframe.Point_FramesPixels(aKeyframes[nI].nBesierControlPointFrames, aKeyframes[nI].nBesierControlPointPixels)
+						};
+					((BTL.Play.Roll)cEffectCoverSender.oEffect).EffectAdd((BTL.IVideo)cEffectCover.oEffect, aKFs, (uint)nDelay, bWaitForEmptySpace);
+				}
+				cEffectCover.cEffectParrent = cEffectCoverSender;
 			}
 			catch (Exception ex)
 			{

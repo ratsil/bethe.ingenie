@@ -227,6 +227,7 @@ namespace ingenie.userspace
 		}
 		protected Callbacks _cCallbacks;
 		public bool _bDone;
+		public bool _bCreating;
 		public event EventDelegate Prepared;
 		public event EventDelegate Started;
 		public event EventDelegate Stopped;
@@ -239,6 +240,8 @@ namespace ingenie.userspace
 				{
 					if (_bDone)
 						return Status.Stopped;
+					if (_bCreating)
+						return Status.Idle;
 					if (null != _cEffect)
 						return StatusTranslate(_cEffect.eStatus);
 				}
@@ -286,12 +289,20 @@ namespace ingenie.userspace
             oTag = ""; // logging
 			_cEffect = null;
 			_bDone = false;
+			_bCreating = false;
 			cTemplate = null;
 		}
 		~Atom()
 		{
-			Dispose();
-		}
+            try
+            {
+                Dispose();
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
+        }
 		virtual public void Dispose()
 		{
             try
@@ -344,8 +355,21 @@ namespace ingenie.userspace
 		abstract internal void Create();
 		protected void Create(Type cTypeShared)
 		{
-            Helper.InitializeTCPChannel();
-			_cEffect = (shared.Effect)Activator.CreateInstance(cTypeShared, null, new object[] {Preferences.cUrlAttribute});
+			byte nN = 0;
+			System.Runtime.Remoting.Activation.UrlAttribute cUrlAttribute_debug = null;
+			try
+			{
+				Helper.InitializeTCPChannel();
+				nN = 1;
+				cUrlAttribute_debug = Preferences.cUrlAttribute;
+				nN = 2;
+				_cEffect = (shared.Effect)Activator.CreateInstance(cTypeShared, null, new object[] { cUrlAttribute_debug });
+			}
+			catch (Exception ex)
+			{
+				(new Logger()).WriteError("creating atom [nN=" + nN + "][url=" + (cUrlAttribute_debug == null ? "null" : cUrlAttribute_debug.Name + " -- " + cUrlAttribute_debug.UrlValue) + "][type=" + (null == cTypeShared ? "null" : cTypeShared.Name) + "]", ex);
+				throw ex;
+			}
 			if (null == _cEffect)
 				throw new Exception("невозможно создать удаленный эффект"); //TODO LANG
 			(new Logger()).WriteDebug3("effect:create: [type:" + cTypeShared.ToString() + "][hc:" + _cEffect.GetHashCode() + "][hcl:" + GetHashCode() + "]");
@@ -464,13 +488,19 @@ namespace ingenie.userspace
         }
 		override internal void Create()
 		{
+			_bCreating = true;
 			base.Create(typeof(shared.Plugin));
 			((shared.Plugin)_cEffect).Create(sFile, sClass, sData);
+			_bCreating = false;
 		}
 	}
 	abstract public class Effect : Atom
 	{
 		protected ushort _nLayer;
+		public List<Roll.Keyframe> aKeyframes;
+		public bool bWaitForEmptySpace;
+		public bool bIsMaskForAllUpper;
+		public float nSpeed;
 		public ushort nLayer
 		{
 			get
@@ -487,14 +517,15 @@ namespace ingenie.userspace
 			}
 		}
 		public ulong nDuration { get; set; }
+        internal XmlNode _cXmlNode;
 		public Effect()
 			: base()
 		{
 			nLayer = 2;
 			nDuration = ulong.MaxValue;   // TODO надо учитывать переходы как-то.... //давай мож переходы всегда за счет видео, чтобы всегда был материал для перехода.... т.е. реальный_дюр = дюр - переход_дюр/2
-			//к сожалению, не всегда у нас есть видео...
-		}
-		override public void LoadXML(XmlNode cXmlNode)
+                                          //к сожалению, не всегда у нас есть видео...
+        }
+        override public void LoadXML(XmlNode cXmlNode)
 		{
 			if (null == cXmlNode)
 				return;
@@ -512,7 +543,7 @@ namespace ingenie.userspace
 							}
 							catch
 							{
-								throw new Exception("указан некорректный Z-buffer [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
+								throw new Exception("указан некорректный параметр: [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
 							}
 							break;
 						case "duration":
@@ -522,20 +553,80 @@ namespace ingenie.userspace
 							}
 							catch
 							{
-								throw new Exception("указана некорректная длительность [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
+								throw new Exception("указана некорректная параметр: [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
+							}
+							break;
+						case "wait_empty_space":
+							try
+							{
+								bWaitForEmptySpace = cAttr.Value.Trim().ToBool();
+							}
+							catch
+							{
+								throw new Exception("указан некорректный параметр: [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
+							}
+							break;
+						case "mask_all_upper":
+							try
+							{
+								bIsMaskForAllUpper = cAttr.Value.Trim().ToBool();
+							}
+							catch
+							{
+								throw new Exception("указан некорректный параметр: [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
+							}
+							break;
+						case "speed":
+							try
+							{
+								nSpeed = cAttr.Value.Trim().ToFloat();
+							}
+							catch
+							{
+								throw new Exception("указан некорректный параметр: [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
 							}
 							break;
 					}
 			}
+			XmlNode cChildNode = cXmlNode.SelectSingleNode("keyframes");
+			if (null != cChildNode)
+			{
+				aKeyframes = new List<Roll.Keyframe>();
+				while (0 < cChildNode.ChildNodes.Count)
+				{
+					if (cChildNode.ChildNodes[0].Name == "keyframe")
+					{
+						aKeyframes.Add(new Roll.Keyframe());
+						aKeyframes[aKeyframes.Count - 1].LoadXML(cChildNode.ChildNodes[0]);
+					}
+					cChildNode.RemoveChild(cChildNode.ChildNodes[0]);
+				}
+			}
 		}
-	}
+    }
 	abstract public class EffectVideo : Effect
 	{
 		public Dock cDock { get; set; }
 		public bool bOpacity { get; set; }
 		public Area stArea;
 		public ulong nFrameStart { get; set; }
-		protected void AreaSet(Area stArea)
+        private ulong? _nFramesTotal;
+        public ulong nFramesTotal
+        {
+            get
+            {
+                if (null != _nFramesTotal)
+                    return _nFramesTotal.Value;
+                if (null != _cEffect)
+                {
+                    _nFramesTotal = ((shared.EffectVideo)_cEffect).nFramesTotal;
+                    return _nFramesTotal.Value;
+                }
+                return ulong.MaxValue;
+            }
+        }
+
+        protected void AreaSet(Area stArea)
 		{
 			if (null != _cEffect)
 				((shared.EffectVideo)_cEffect).stArea = stArea;
@@ -927,7 +1018,7 @@ namespace ingenie.userspace
 						}
 					}
 					else
-						throw new Exception("отсутствует необходимый параметр [order][TPL:" + cChildNode.ChildNodes[0].BaseURI + "]"); //TODO LANG
+						throw new Exception("отсутствует необходимый параметр [order][TPL:" + cChildNode.ChildNodes[0].BaseURI + "]"); //TODO LANG   
 					Item cItem;
 					switch (cChildNode.ChildNodes[0].Name)
 					{
@@ -1079,58 +1170,71 @@ namespace ingenie.userspace
 		}
 	}
 	public class Video : EffectVideoAudio
-	{
-		public string sFile { get; set; }
-		public ushort nLoopsQty { get; set; }
-		public Video()
-			: base()
-		{
-			sFile = null;
-			nLoopsQty = 0;
-		}
+    {
+        public string sFile { get; set; }
+        public ushort nLoopsQty { get; set; }
+        public Video()
+            : base()
+        {
+            sFile = null;
+            nLoopsQty = 0;
+        }
+        public Video(XmlNode cNode)
+            : base()
+        {
+            _cXmlNode = cNode;
+        }
         override public void LoadXML(XmlNode cXmlNode)
-		{
-			sFile = null;
-			nLoopsQty = 0;
+        {
+            sFile = null;
+            nLoopsQty = 0;
             base.LoadXML(cXmlNode);
-			foreach (XmlAttribute cAttr in cXmlNode.Attributes)
-			{
-				try
-				{
-					switch (cAttr.Name)
-					{
-						case "loop":
-							nLoopsQty = cAttr.Value.ToUInt16();
-							break;
-						case "file":
-							sFile = cAttr.Value;
-							oTag = sFile; // logging
-							break;
-					}
-				}
-				catch
-				{
-					throw new Exception("указан некорректный параметр [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
-				}
-			}
-			if(null == sFile)
-				throw new Exception("отсутствует необходимый параметр file [TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
-            //TODO сделать корректно:
-            //if (!System.IO.File.Exists(sFile))
-            //    throw new Exception("отсутствует указанный файл [" + sFile + "]"); //TODO LANG
-		}
-		override internal void Create()
-		{
-			base.Create(typeof(shared.Video));
-			shared.Video cVideoRemote = (shared.Video)_cEffect;
-			cVideoRemote.Create(sFile, cDock, _nLayer, nFrameStart, nDuration, bOpacity, cShow.nDelay);
-			AreaSet(stArea);
-			cVideoRemote.cDock = cDock;
-			cVideoRemote.aChannels = _aChannels;
-		}
-
-	}
-	public class Audio : EffectAudio
+            foreach (XmlAttribute cAttr in cXmlNode.Attributes)
+            {
+                try
+                {
+                    switch (cAttr.Name)
+                    {
+                        case "loop":
+                            nLoopsQty = cAttr.Value.ToUInt16();
+                            break;
+                        case "file":
+                            sFile = cAttr.Value;
+                            oTag = sFile; // logging
+                            break;
+                    }
+                }
+                catch
+                {
+                    throw new Exception("указан некорректный параметр [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
+                }
+            }
+            if (null == sFile)
+                throw new Exception("отсутствует необходимый параметр file [TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
+                                                                                                             //TODO сделать корректно:
+                                                                                                             //if (!System.IO.File.Exists(sFile))
+                                                                                                             //    throw new Exception("отсутствует указанный файл [" + sFile + "]"); //TODO LANG
+        }
+        override internal void Create()
+        {
+            _bCreating = true;
+            base.Create(typeof(shared.Video));
+            shared.Video cVideoRemote = (shared.Video)_cEffect;
+            if (_cXmlNode == null)
+            {
+                cVideoRemote.Create(sFile, cDock, _nLayer, nFrameStart, nDuration, bOpacity, cShow.nDelay);
+                AreaSet(stArea);
+                cVideoRemote.cDock = cDock;
+                cVideoRemote.aChannels = _aChannels;
+            }
+            else
+            {
+                cVideoRemote.Create(_cXmlNode.OuterXml);
+            }
+            _bCreating = false;
+        }
+    }
+    public class Audio : EffectAudio
 	{
 		public string sFile { get; set; }
 		public Audio()
@@ -1138,57 +1242,78 @@ namespace ingenie.userspace
 		{
 			sFile = null;
 		}
+        public Audio(XmlNode cNode)
+            : base()
+        {
+            _cXmlNode = cNode;
+        }
         override public void LoadXML(XmlNode cXmlNode)
-		{
-			sFile = null;
+        {
+            sFile = null;
             base.LoadXML(cXmlNode);
-			foreach (XmlAttribute cAttr in cXmlNode.Attributes)
-			{
-				try
-				{
-					switch (cAttr.Name)
-					{
-						case "file":
-							sFile = cAttr.Value;
-							oTag = sFile; // logging
-							break;
-					}
-				}
-				catch
-				{
-					throw new Exception("указан некорректный параметр [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
-				}
-			}
-			if(null == sFile)
-				throw new Exception("отсутствует необходимый параметр file [TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
-            //TODO сделать корректно:
-            //if (!System.IO.File.Exists(sFile))
-            //    throw new Exception("отсутствует указанный файл [" + sFile + "]"); //TODO LANG
-		}
-		override internal void Create()
-		{
-			(new Logger()).WriteDebug3("audio:create:in [hcl:" + GetHashCode() + "]");
-			base.Create(typeof(shared.Audio));
-			shared.Audio cRemote = (shared.Audio)_cEffect;
-			cRemote.Create(sFile);
-			nDelay = cShow.nDelay;
-			aChannels = _aChannels;
-			(new Logger()).WriteDebug4("audio:create:return [hc:" + _cEffect.GetHashCode() + "]");
-		}
-	}
-	public class Animation : EffectVideo
-	{
-		public string sFolder { get; set; }
-		public ushort nLoopsQty { get; set; }
+            foreach (XmlAttribute cAttr in cXmlNode.Attributes)
+            {
+                try
+                {
+                    switch (cAttr.Name)
+                    {
+                        case "file":
+                            sFile = cAttr.Value;
+                            oTag = sFile; // logging
+                            break;
+                    }
+                }
+                catch
+                {
+                    throw new Exception("указан некорректный параметр [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
+                }
+            }
+            if (null == sFile)
+                throw new Exception("отсутствует необходимый параметр file [TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
+                                                                                                             //TODO сделать корректно:
+                                                                                                             //if (!System.IO.File.Exists(sFile))
+                                                                                                             //    throw new Exception("отсутствует указанный файл [" + sFile + "]"); //TODO LANG
+        }
+        override internal void Create()
+        {
+            _bCreating = true;
+            (new Logger()).WriteDebug3("audio:create:in [hcl:" + GetHashCode() + "]");
+            base.Create(typeof(shared.Audio));
+            shared.Audio cRemote = (shared.Audio)_cEffect;
+            if (_cXmlNode == null)
+            {
+                cRemote.Create(sFile);
+                nDelay = cShow.nDelay;
+                aChannels = _aChannels;
+            }
+            else
+            {
+                cRemote.Create(_cXmlNode.OuterXml);
+            }
+            (new Logger()).WriteDebug4("audio:create:return [hc:" + _cEffect.GetHashCode() + "]");
+            _bCreating = false;
+        }
+    }
+    public class Animation : EffectVideo
+    {
+        public string sFolder { get; set; }
+        public ushort nLoopsQty { get; set; }
 		public bool bKeepAlive { get; set; }
 		public float nPixelAspectRatio { get; set; }
+		public bool bTurnOffQueue { get; set; }
 		public Animation()
 			: base()
 		{
 			sFolder = "";
 			nLoopsQty = 1;
 			bKeepAlive = true;
+			bTurnOffQueue = false;
 		}
+        public Animation(XmlNode cNode)
+            : base()
+        {
+            _cXmlNode = cNode;
+        }
         override public void LoadXML(XmlNode cXmlNode)
 		{
             if (null == cXmlNode)
@@ -1210,6 +1335,9 @@ namespace ingenie.userspace
 							sFolder = cAttr.Value;
 							oTag = sFolder; // logging
 							break;
+						case "turn_off_queue":
+							bTurnOffQueue = cAttr.Value.ToBool();
+							break;
 					}
 				}
 				catch
@@ -1228,25 +1356,43 @@ namespace ingenie.userspace
             */
 		}
 		override internal void Create()
-		{
-			base.Create(typeof(shared.Animation));
-			((shared.Animation)_cEffect).Create(sFolder, nLoopsQty, bKeepAlive, cDock, _nLayer, bOpacity, cShow.nDelay, nPixelAspectRatio);
-			AreaSet(stArea);
-		}
-	}
-	public class Text : EffectVideo
+        {
+            _bCreating = true;
+            base.Create(typeof(shared.Animation));
+            if (_cXmlNode == null)
+            {
+                ((shared.Animation)_cEffect).Create(sFolder, nLoopsQty, bKeepAlive, cDock, _nLayer, bOpacity, cShow.nDelay, nPixelAspectRatio, bTurnOffQueue);
+                AreaSet(stArea);
+            }
+            else
+            {
+                ((shared.Animation)_cEffect).Create(_cXmlNode.OuterXml);
+            }
+            _bCreating = false;
+        }
+    }
+    public class Text : EffectVideo
 	{
 		public Font cFont { get; set; }
 		public string sText { get; set; }
 		public byte nInDissolve { get; set; }
 		public byte nOutDissolve { get; set; }
+		public ushort nWidthMax { get; set; }
+		public ushort nHeightMax { get; set; }
 		public Text()
 			: base()
 		{
 			cFont = new Font();
 			sText = "";
+			nWidthMax = ushort.MaxValue;
+			nHeightMax = ushort.MaxValue;
 		}
-		override public void LoadXML(XmlNode cXmlNode)
+        public Text(XmlNode cNode)
+            : base()
+        {
+            _cXmlNode = cNode;
+        }
+        override public void LoadXML(XmlNode cXmlNode)
 		{
 			if (null == cXmlNode)
 				return;
@@ -1274,6 +1420,26 @@ namespace ingenie.userspace
 							throw new Exception("указана некорректная длительность эффекта [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
 						}
 						break;
+					case "width_max":
+						try
+						{
+							nWidthMax = cAttr.Value.Trim().ToUInt16();
+						}
+						catch
+						{
+							throw new Exception("указана некорректная максимальная ширина [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
+						}
+						break;
+					case "height_max":
+						try
+						{
+							nHeightMax = cAttr.Value.Trim().ToUInt16();
+						}
+						catch
+						{
+							throw new Exception("указана некорректная максимальная высота [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
+						}
+						break;
 				}
 			XmlNode cChildNode = cXmlNode.SelectSingleNode("value");
 			if (null != cChildNode)
@@ -1295,20 +1461,29 @@ namespace ingenie.userspace
 		}
 		override internal void Create()
 		{
+			_bCreating = true;
 			base.Create(typeof(shared.Text));
-			object[] aArgs = { sText, cFont.sName, cFont.nSize, (System.Drawing.FontStyle)cFont.nFontStyle,
-                                                 cFont.cColor.nRed, cFont.cColor.nGreen, cFont.cColor.nBlue, 
-                                                 cFont.cBorder.nWidth, 
-                                                 cFont.cBorder.cColor.nRed, cFont.cBorder.cColor.nGreen, cFont.cBorder.cColor.nBlue, 
+            if (_cXmlNode == null)
+            {
+                object[] aArgs = { sText, cFont.sName, cFont.nSize, (System.Drawing.FontStyle)cFont.nFontStyle,
+                                                 cFont.cColor.nRed, cFont.cColor.nGreen, cFont.cColor.nBlue,
+                                                 cFont.cBorder.nWidth,
+                                                 cFont.cBorder.cColor.nRed, cFont.cBorder.cColor.nGreen, cFont.cBorder.cColor.nBlue,
                                                  cDock.cOffset.nLeft, cDock.cOffset.nTop,
                                                  _nLayer, cShow.nDelay, nDuration, bOpacity,
-												 nInDissolve, nOutDissolve, 
-												 cFont.cColor.nAlpha, cFont.cBorder.cColor.nAlpha,
-												 cDock.eCorner
-							 };
-			((shared.Text)_cEffect).Create(aArgs);
-			AreaSet(stArea);
-			oTag = sText; // logging
+                                                 nInDissolve, nOutDissolve,
+                                                 cFont.cColor.nAlpha, cFont.cBorder.cColor.nAlpha,
+                                                 cDock.eCorner, nWidthMax, nHeightMax
+                             };
+                ((shared.Text)_cEffect).Create(aArgs);
+                AreaSet(stArea);
+                oTag = sText; // logging
+            }
+            else
+            {
+                ((shared.Text)_cEffect).Create(_cXmlNode.OuterXml);
+            }
+			_bCreating = false;
 		}
 	}
 	public class Clock : Text
@@ -1330,7 +1505,12 @@ namespace ingenie.userspace
 		{
 			sFormat = "HH:mm";
 		}
-		override public void LoadXML(XmlNode cXmlNode)
+        public Clock(XmlNode cNode)
+            : base()
+        {
+            _cXmlNode = cNode;
+        }
+        override public void LoadXML(XmlNode cXmlNode)
 		{
 			if (null == cXmlNode)
 				return;
@@ -1358,23 +1538,32 @@ namespace ingenie.userspace
 			{
 				sSuffix = cChildNode.FirstChild.Value.FromXML();
 				if (null == sSuffix || 1 > sSuffix.Length)
-					sSuffix = " ";
+					sSuffix = "";
 			}
 		}
 		override internal void Create()
 		{
+			_bCreating = true;
 			base.Create(typeof(shared.Clock));
-			object[] aArgs = { sFormat, cFont.sName, cFont.nSize, (System.Drawing.FontStyle)cFont.nFontStyle,
-                                                 cFont.cColor.nRed, cFont.cColor.nGreen, cFont.cColor.nBlue, 
-                                                 cFont.cBorder.nWidth, 
-                                                 cFont.cBorder.cColor.nRed, cFont.cBorder.cColor.nGreen, cFont.cBorder.cColor.nBlue, 
+            if (_cXmlNode == null)
+            {
+                object[] aArgs = { sFormat, cFont.sName, cFont.nSize, (System.Drawing.FontStyle)cFont.nFontStyle,
+                                                 cFont.cColor.nRed, cFont.cColor.nGreen, cFont.cColor.nBlue,
+                                                 cFont.cBorder.nWidth,
+                                                 cFont.cBorder.cColor.nRed, cFont.cBorder.cColor.nGreen, cFont.cBorder.cColor.nBlue,
                                                  cDock.cOffset.nLeft, cDock.cOffset.nTop,
-                                                 _nLayer, cShow.nDelay, nDuration, sSuffix, bOpacity, 
-												 cFont.cColor.nAlpha, cFont.cBorder.cColor.nAlpha,
-												 cDock.eCorner
-							 };
-			((shared.Clock)_cEffect).Create(aArgs);
-			oTag = sFormat;
+                                                 _nLayer, cShow.nDelay, nDuration, sSuffix, bOpacity,
+                                                 cFont.cColor.nAlpha, cFont.cBorder.cColor.nAlpha,
+                                                 cDock.eCorner
+                             };
+                ((shared.Clock)_cEffect).Create(aArgs);
+                oTag = sFormat;
+            }
+            else
+            {
+                ((shared.Clock)_cEffect).Create(_cXmlNode.OuterXml);
+            }
+			_bCreating = false;
 		}
 	}
 	public class Playlist : Container
@@ -1390,7 +1579,12 @@ namespace ingenie.userspace
 			bStopOnEmpty = true;
 			aChannels = new byte[0];
 		}
-		override public void LoadXML(XmlNode cXmlNode)
+        public Playlist(XmlNode cNode)
+            : base()
+        {
+            _cXmlNode = cNode;
+        }
+        override public void LoadXML(XmlNode cXmlNode)
 		{
 			if (null == cXmlNode)
 				return;
@@ -1418,27 +1612,37 @@ namespace ingenie.userspace
 
 		override internal void Create()
 		{
-			oTag = "playlist + nz=" + _nLayer + " + cDock=" + cDock.eCorner.ToString() + "x " + cDock.cOffset.nLeft + "y " + cDock.cOffset.nTop;
-			(new Logger()).WriteDebug3("playlist:create:in [hcl:" + GetHashCode() + "]");
-			base.Create(typeof(shared.Playlist));
-			shared.Playlist cPlaylistRemote = (shared.Playlist)_cEffect;
-			cPlaylistRemote.Create(cDock, _nLayer, bStopOnEmpty, bOpacity, cShow.nDelay);
-			AreaSet(stArea);
-			cPlaylistRemote.cDock = cDock;
-			cPlaylistRemote.aChannels = _aChannels;
-			Item[] aItems;
-			lock(_aItems)
-				aItems = _aItems.OrderBy(o => o.nOrder).ToArray();
-			for (int nIndx = 0; aItems.Length > nIndx; nIndx++)
-				EffectAdd(aItems[nIndx].cEffect);
+			_bCreating = true;
+            (new Logger()).WriteDebug3("playlist:create:in [hcl:" + GetHashCode() + "]");
+            base.Create(typeof(shared.Playlist));
+            shared.Playlist cPlaylistRemote = (shared.Playlist)_cEffect;
+            if (_cXmlNode == null)
+            {
+                oTag = "playlist + nz=" + _nLayer + " + cDock=" + cDock.eCorner.ToString() + "x " + cDock.cOffset.nLeft + "y " + cDock.cOffset.nTop;
+                cPlaylistRemote.Create(cDock, _nLayer, bStopOnEmpty, bOpacity, cShow.nDelay);
+                AreaSet(stArea);
+                cPlaylistRemote.cDock = cDock;
+                cPlaylistRemote.aChannels = _aChannels;
+                cPlaylistRemote.nDuration = nDuration;
+                Item[] aItems;
+                lock (_aItems)
+                    aItems = _aItems.OrderBy(o => o.nOrder).ToArray();
+                for (int nIndx = 0; aItems.Length > nIndx; nIndx++)
+                    EffectAdd(aItems[nIndx].cEffect);
+            }
+            else
+            {
+                cPlaylistRemote.Create(_cXmlNode.OuterXml);
+            }
 			(new Logger()).WriteDebug4("playlist:create:return [hc:" + _cEffect.GetHashCode() + "]");
+			_bCreating = false;
 		}
 		override public void Stop()
 		{
 			if (cHide.enType == userspace.Effect.HIDE.TYPE.skip && eStatus == Status.Started) // препэред не скипится.
 			{
-				((shared.Playlist)_cEffect).nDuration = ((shared.Playlist)_cEffect).nFrameCurrent + 250;        // выше сказанное оказалось верно, но не два чего-то теперь, а вечное отключение титрования из-за "still waiting for"
-				((shared.Playlist)_cEffect).Skip(false, 0, null);                             // и строго говоря, не скипиться должен стартед, который ещё не проплеел свой "in".
+				((shared.Playlist)_cEffect).nDuration = ((shared.Playlist)_cEffect).nFrameCurrent + 250;        // выше-ниже сказанное оказалось верно - попытка поправить, но не два чего-то теперь, а вечное отключение титрования из-за "still waiting for"
+				((shared.Playlist)_cEffect).Skip(false, 0, null);                             // и строго говоря, не скипиться должен стартед, который ещё не проплеел свой "in" - потом бесконечный loop.
 			}
 			else                                                                              // и может два чего-то в эфире - это из-за этого...  не знаю что делать...
 				base.Stop();
@@ -1483,9 +1687,9 @@ namespace ingenie.userspace
 		public void PLItemsDelete(List<int> aEffectIDs)
         {
 			Item[] aItems;
-			int n1 = aEffectIDs[0];
-			int n2 = _aItems.ElementAt(0).cEffect.GetHashCode();
-			int n3 = _aItems.ElementAt(1).cEffect.GetHashCode();
+			//int n1 = aEffectIDs[0];
+			//int n2 = _aItems.ElementAt(0).cEffect.GetHashCode();
+			//int n3 = _aItems.ElementAt(1).cEffect.GetHashCode();
 			lock (_aItems)
 				aItems = _aItems.Where(o => aEffectIDs.Contains(o.cEffect.GetHashCode())).ToArray();
 			shared.Effect[] aShareds = aItems.Select(o => o.cEffectShared).ToArray();
@@ -1494,8 +1698,111 @@ namespace ingenie.userspace
 				ItemRemove(cItem);
 		}
 	}
-	public class Roll : Container
+    public class Composite : Container
+    {
+        public Composite()
+            : base()
+        {
+            throw new Exception("not realized Composite() - move composite to 'effects' node");
+        }
+        override public void LoadXML(XmlNode cXmlNode)
+        {
+            throw new Exception("not realized LoadXML - move composite to 'effects' node");
+        }
+        public Composite(XmlNode cNode)
+            : base()
+        {
+            _cXmlNode = cNode;
+        }
+        override internal void Create()
+        {
+            _bCreating = true;
+            (new Logger()).WriteDebug3("roll:create:in [hcl:" + GetHashCode() + "]");
+            base.Create(typeof(shared.Composite));
+            shared.Composite cRollRemote = (shared.Composite)_cEffect;
+            if (_cXmlNode != null)
+            {
+                cRollRemote.Create(_cXmlNode.OuterXml);
+            }
+            (new Logger()).WriteDebug4("roll:create:return [hc:" + _cEffect.GetHashCode() + "]");
+            _bCreating = false;
+        }
+    }
+
+    public class Roll : Container
 	{
+		public class Keyframe
+		{
+			public enum Type
+			{
+				calculated = 0,
+				hold = 1,
+				linear = 2,
+				bezier = 3
+			}
+			public float nPosition;
+			public long nFrame;
+			public float nBesierControlPointFrames;
+			public float nBesierControlPointPixels;
+			public Type eType;
+			public Keyframe()
+			{
+				nPosition = 0;
+				nFrame = 0;
+				nBesierControlPointFrames = 0;
+				nBesierControlPointPixels = 0;
+				eType = Type.linear;
+			}
+			public void LoadXML(XmlNode cXmlNode)
+			{
+				if (null == cXmlNode)
+					return;
+				if (0 < cXmlNode.Attributes.Count)
+				{
+					string sValue;
+					foreach (XmlAttribute cAttr in cXmlNode.Attributes)
+					{
+						try
+						{
+							switch (cAttr.Name)
+							{
+								case "type":
+									eType = (Type)Enum.Parse(typeof(Type), cAttr.Value.Trim(), true);
+									break;
+								case "frame":
+									sValue = cAttr.Value.Trim();
+									if (null == sValue || 1 > sValue.Length)
+										sValue = "0";
+									nFrame = sValue.ToLong();
+									break;
+								case "position":
+									sValue = cAttr.Value.Trim();
+									if (null == sValue || 1 > sValue.Length)
+										sValue = "0";
+									nPosition = sValue.ToFloat();
+									break;
+								case "control_point_frame":
+									sValue = cAttr.Value.Trim();
+									if (null == sValue || 1 > sValue.Length)
+										sValue = "0";
+									nBesierControlPointFrames = sValue.ToFloat();
+									break;
+								case "control_point_position":
+									sValue = cAttr.Value.Trim();
+									if (null == sValue || 1 > sValue.Length)
+										sValue = "0";
+									nBesierControlPointPixels = sValue.ToFloat();
+									break;
+							}
+						}
+						catch
+						{
+							throw new Exception("указан некорректный параметр [" + cAttr.Name + "=" + cAttr.Value + "][TPL:" + cXmlNode.BaseURI + "]"); //TODO LANG
+						}
+					}
+				}
+			}
+		}
 		public enum Direction
 		{
 			LeftToRight,
@@ -1538,12 +1845,21 @@ namespace ingenie.userspace
 			}
 		}
 		private bool bTextSplit;
+		public bool bCuda { get; set; }
+		public bool bStopOnEmpty { get; set; }
+		public Dictionary<ushort, Roll.Keyframe[]> ahKeyframes;
 		public Roll()
 			: base()
 		{
 			_nSpeed = 25;
 			bTextSplit = false;
+			bCuda = false;
 		}
+        public Roll(XmlNode cNode)
+            : base()
+        {
+            _cXmlNode = cNode;   
+        }
 		override public void LoadXML(XmlNode cXmlNode)
 		{
 			if (null == cXmlNode)
@@ -1569,6 +1885,12 @@ namespace ingenie.userspace
 							case "textsplit":
 								bTextSplit = cAttr.Value.Trim().ToBool();
 								break;
+							case "cuda":
+								bCuda = cAttr.Value.Trim().ToBool();
+								break;
+							case "stop_on_empty":
+								bStopOnEmpty = cAttr.Value.Trim().ToBool();
+								break;
 						}
 					}
 					catch
@@ -1581,37 +1903,57 @@ namespace ingenie.userspace
 
 		override internal void Create()
 		{
+			_bCreating = true;
 			(new Logger()).WriteDebug3("roll:create:in [hcl:" + GetHashCode() + "]");
 			base.Create(typeof(shared.Roll));
 			shared.Roll cRollRemote = (shared.Roll)_cEffect;
-			cRollRemote.Create();
-			eDirection = _eDirection;
-			nSpeed = _nSpeed;
-			AreaSet(stArea);
-			if (null != cDock)
-				cRollRemote.cDock = cDock;
-			nLayer = _nLayer;
-			nDelay = cShow.nDelay;
+            if (_cXmlNode == null)
+            {
+                cRollRemote.Create();
+                eDirection = _eDirection;
+                nSpeed = _nSpeed;
+                AreaSet(stArea);
+                if (null != cDock)
+                    cRollRemote.cDock = cDock;
+                nLayer = _nLayer;
+                nDelay = cShow.nDelay;
 
-			Item[] aItems;
-			lock (_aItems)
-				aItems = _aItems.OrderBy(o => o.nOrder).ToArray();
-			for (int nIndx = 0; aItems.Length > nIndx; nIndx++)
-				EffectAdd(aItems[nIndx].cEffect);
-
-			(new Logger()).WriteDebug4("roll:create:return [hc:" + _cEffect.GetHashCode() + "]");
+                Item[] aItems;
+                lock (_aItems)
+                    aItems = _aItems.OrderBy(o => o.nOrder).ToArray();
+                for (int nIndx = 0; aItems.Length > nIndx; nIndx++)
+                {
+                    EffectAdd(aItems[nIndx].cEffect);
+                }
+            }
+            else
+            {
+                cRollRemote.Create(_cXmlNode.OuterXml);
+            }
+            (new Logger()).WriteDebug4("roll:create:return [hc:" + _cEffect.GetHashCode() + "]");
+			_bCreating = false;
 		}
-        public void EffectAdd(userspace.Effect cEffect)
-        {
-            EffectAdd(cEffect, float.MaxValue);
-        }
+		public void EffectAdd(userspace.Effect cEffect)
+		{
+			if (cEffect.nSpeed <= 0)
+				EffectAdd(cEffect, float.MaxValue);
+			else
+				EffectAdd(cEffect, cEffect.nSpeed);
+		}
 		public void EffectAdd(userspace.Effect cEffect, float nSpeed)
 		{
-			if (null == _cEffect)
-				Create();
+			lock (_aItems)
+				if (null == _cEffect)
+					Create();
 			cEffect.Create();
 			shared.Effect cEffectRemote = RemoteEffectGet(cEffect);
-			((shared.Roll)_cEffect).EffectAdd(cEffectRemote, nSpeed);
+			ulong nDelay = 0;
+			if (cEffectRemote.nDelay > 0 && cEffectRemote.nDelay < ulong.MaxValue)
+			{
+				nDelay = cEffectRemote.nDelay;
+				cEffectRemote.nDelay = 0;
+            }
+            ((shared.Roll)_cEffect).EffectAdd(cEffectRemote, nSpeed, (cEffect.aKeyframes == null ? null : SharedKeyframesMake(cEffect.aKeyframes.ToArray())), cEffect.bWaitForEmptySpace, cEffect.bIsMaskForAllUpper, nDelay);
 			Item cItem = ItemGet(cEffect);
 			if (null == cItem)
 			{
@@ -1621,19 +1963,28 @@ namespace ingenie.userspace
 			}
 			cItem.cEffectShared = cEffectRemote;
 		}
+		private shared.Roll.Keyframe[] SharedKeyframesMake(Keyframe[] aKeyframes)
+		{
+			if (null == aKeyframes || aKeyframes.Length <= 0)
+				return null;
+			List<shared.Roll.Keyframe> aKFs = new List<shared.Roll.Keyframe>();
+			foreach (Keyframe cKF in aKeyframes)
+				aKFs.Add(((shared.Roll)_cEffect).KeyframeMake(cKF.eType.ToInt(), cKF.nPosition, cKF.nFrame, cKF.nBesierControlPointFrames, cKF.nBesierControlPointPixels));
+			return aKFs.ToArray();
+		}
 		public List<userspace.Effect> EffectsGet()
 		{
-			if (null == _cEffect)  // манипуляции с эффектами безопасны только до create
-				lock(_aItems)
+			lock (_aItems)
+				if (null == _cEffect)  // манипуляции с эффектами безопасны только до create
 					return _aItems.Select(o => o.cEffect).ToList();
-			else
-				return null;
+				else
+					return null;
 		}
 		public void EffectRemove(userspace.Effect cEffect)
 		{
 			Item cItem;
-			if (null == _cEffect && null != (cItem = _aItems.FirstOrDefault(o => o.cEffect == cEffect)))  // манипуляции с эффектами безопасны только до create
-				lock(_aItems)
+			lock (_aItems)
+				if (null == _cEffect && null != (cItem = _aItems.FirstOrDefault(o => o.cEffect == cEffect)))  // манипуляции с эффектами безопасны только до create
 					_aItems.Remove(cItem);
 		}
         public bool TryAddText(string sText)
@@ -1698,16 +2049,34 @@ namespace ingenie.userspace
                 lock (LockHelper)
                     if (null == _cHelper)
                     {
+                        Preferences.Reload();
                         Helper.InitializeTCPChannel();
+                        (new Logger()).WriteNotice("will connect to server [" + Preferences.cUrlAttribute.UrlValue + "]");
                         return _cHelper = (shared.Helper)Activator.CreateInstance(typeof(shared.Helper), null, new object[] { Preferences.cUrlAttribute });
                     }
                     else
                         return _cHelper;
             }
         }
-        public bool FileExist(string sFileName)
+        public bool FileExists(string sFileName)
         {
             return cHelper.FileExist(sFileName);
+        }
+		public bool FileCopy(string sSource, string sTarget)
+		{
+			return cHelper.FileCopy(sSource, sTarget);
+		}
+		public bool FileMove(string sSource, string sTarget)
+		{
+			return cHelper.FileMove(sSource, sTarget);
+		}
+        public bool FileCreate(string sFile, string sText)
+        {
+            return cHelper.FileCreate(sFile, sText);
+        }
+        public void FileDelete(string sFileName)
+        {
+            cHelper.FileDelete(sFileName);
         }
 		public string[] FileNamesGet(string sFolder, string[] aExtensions)
 		{
@@ -1717,6 +2086,25 @@ namespace ingenie.userspace
 		{
 			return cHelper.DirectoriesNamesGet(sFolder);
 		}
+
+
+        public bool CopyFileExtendedCreate(string sSource, string sTarget, int nDelayMiliseconds, int nPeriodToDelayMiliseconds, long nFramesDur)
+        {
+            return cHelper.CopyFileExtendedCreate(sSource, sTarget, nDelayMiliseconds, nPeriodToDelayMiliseconds, nFramesDur);
+        }
+        public bool CopyFileExtendedDoCopy(bool bResetLastWriteTime)
+        {
+            return cHelper.CopyFileExtendedDoCopy(bResetLastWriteTime);
+        }
+        public float CopyFileExtendedProgressPercentGet()
+        {
+            return cHelper.CopyFileExtendedProgressPercentGet();
+        }
+        public bool CopyFileExtendedIsNull()
+        {
+            return cHelper.CopyFileExtendedIsNull();
+        }
+
         public List<EffectInfo> BaetylusEffectsInfoGet()
         {
             List<shared.Helper.EffectInfo> aSEIs = cHelper.BaetylusEffectsInfoGet();
@@ -1754,7 +2142,7 @@ namespace ingenie.userspace
 //    {
 //        Atom[] aAtoms = (Atom[])cState;
 //        Animation cAnimation = null;
-//        string sCacheFolder = System.IO.Path.GetTempPath() + "/replica.cues.cache/"; //UNDONE //EMERGENCY нужно сделать нормальную обработку file cache, добавить интерфейс для классов поддерживающих кеширование и т.п.
+//        string sCacheFolder = System.IO.Path.GetTempP	ath() + "/replica.cues.cache/"; //UNDONE //EMERGENCY нужно сделать нормальную обработку file cache, добавить интерфейс для классов поддерживающих кеширование и т.п.
 //        foreach (Atom cAtom in aAtoms)
 //        {
 //            if (cAtom is Animation)

@@ -36,8 +36,15 @@ namespace ingenie.management.Views
         void _cIG_BaetylusEffectStopCompleted(object sender, BaetylusEffectStopCompletedEventArgs e)
         {
             string sErrorEIs = "";
-            foreach (EffectInfo cEI in (ObservableCollection<EffectInfo>)e.UserState)
+            if (e.Result == null || e.UserState == null)
+                MessageBox.Show("не удалось! [e.result=" + (e.Result == null ? "NULL" : "" + e.Result.Count) + "][e.result=" + (e.UserState == null ? "NULL" : "" + ((List<EffectInfo>)e.UserState).Count) + "]");
+            foreach (EffectInfo cEI in (List<EffectInfo>)e.UserState)
             {
+                if (cEI == null)
+                {
+                    sErrorEIs += Environment.NewLine + "вместо информации об эффекте получен NULL";
+                    continue;
+                }
                 if (!e.Result.Contains(cEI.nHashCode))
                     cEI.sStatus = "stopped";
                 else
@@ -47,14 +54,6 @@ namespace ingenie.management.Views
             }
             if ("" != sErrorEIs)
                 MessageBox.Show("Ошибка!", "Внимание, во время остановки этих элементов произошли ошибки: " + sErrorEIs + "\nсмотри лог!", MessageBoxButton.OK);
-            //if (!e.Result)
-            //    MessageBox.Show("не удалось (( смотри лог!");
-            //else
-            //{
-            //    cEI = _aEffectsInfo.FirstOrDefault(o => o.nHashCode == (int)e.UserState);
-            //    if (null != cEI)
-            //        cEI.sStatus = "stopped";
-            //}
         }
 
         void _cIG_BaetylusEffectsInfoGetCompleted(object sender, BaetylusEffectsInfoGetCompletedEventArgs e)

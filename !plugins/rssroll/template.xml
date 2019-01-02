@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<template>
+  <plugin file="/path/rssroll.dll" class="RssRoll">
+    <data uri="http://cbr.ru/scripts/RssCurrency.asp" tag="description" splitter="&lt;br&gt;" separator=".  " encoding="windows-1251" interval="5000">
+      <roll layer="53" direction="RightToLeft" speed="100" cuda="true" queue="3" pause="5000">
+        <area left="0" top="30" width="1920" height="53" />
+      </roll>
+      <text cuda="false">
+        <font name="AG_Futura" size="40" style="regular">
+          <color alpha="255" red="255" green="255" blue="255" />
+          <border width="0">
+            <color alpha="255" red="0" green="0" blue="0" />
+          </border>
+        </font>
+      </text>
+    </data>
+  </plugin>
+</template>

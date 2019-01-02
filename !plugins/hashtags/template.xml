@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<template destroy="self">
+	<plugin file="/path/credits.dll" class="Credits">
+		<data>
+			<roll layer="53" direction="RightToLeft" cuda="false" stop_on_empty="true" render_on_prepare="true" >
+				<offset x="140" y="123" />
+				<size width="1600" height="180" />
+				<effects>
+					<text layer="5" duration="120" opacity="false" in_dissolve="0" out_dissolve="0" width_max="1500" render_fields="false" shift_top="10" press_bot="10" >
+						<show delay="10"/>
+						<offset x="4" y="14" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+						<font name="Pancetta Pro" size="30" style="0">
+							<color alpha="255" red="0" green="0" blue="0" />
+							<border width="0">
+								<color alpha="200" red="0" green="0" blue="0"  />
+							</border>
+						</font>
+						<value>TEXT1</value>
+					</text>
+					<text layer="5" duration="60" opacity="false" in_dissolve="0" out_dissolve="0" width_max="1500" render_fields="false" shift_top="10" press_bot="10" >
+						<show delay="10"/>
+						<offset x="4" y="14" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+						<font name="Pancetta Pro" size="30" style="0">
+							<color alpha="255" red="0" green="0" blue="0" />
+							<border width="0">
+								<color alpha="200" red="0" green="0" blue="0"  />
+							</border>
+						</font>
+						<value>TEXT2</value>
+					</text>
+					<text layer="5" duration="240" opacity="false" in_dissolve="0" out_dissolve="0" width_max="1500" render_fields="false" shift_top="10" press_bot="10" >
+						<show delay="10"/>
+						<offset x="4" y="14" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+						<font name="Pancetta Pro" size="30" style="0">
+							<color alpha="255" red="0" green="0" blue="0" />
+							<border width="0">
+								<color alpha="200" red="0" green="0" blue="0"  />
+							</border>
+						</font>
+						<value>TEXT3</value>
+					</text>
+					<animation name="back" layer="1" opacity="false" loops="1" folder="/path/animation.zip" text_length="1500" keep_alive="false" turn_off_queue="true" container_size="false" >
+						<offset x="0" y="0" />
+						<keyframes>
+							<keyframe type="hold" frame="0" position="0" />
+						</keyframes>
+					</animation>
+				</effects>
+			</roll>
+		</data>
+	</plugin>
+</template>

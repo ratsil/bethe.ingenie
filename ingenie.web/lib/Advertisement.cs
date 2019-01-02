@@ -20,7 +20,9 @@ namespace ingenie.web.lib
 		public string sStorageName;
 		public string sStoragePath;
 		public bool bFileExist;
-		public string sClassName;
-		public bool bLogoBinding;
+        public bool bCached;
+        public string sCopyPercent;
+        public helpers.replica.pl.Class[] aClasses;
+        public bool bLogoBinding;
 	}
 }

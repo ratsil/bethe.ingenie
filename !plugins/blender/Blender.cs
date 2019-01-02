@@ -20,7 +20,8 @@ namespace ingenie.plugins
 		private BTL.IEffect _iEffect;
         private BTL.EffectStatus _eStatus;
         private DateTime _dtStatusChanged;
-		private string _sMessage;
+		private bool _bPrepared;
+		private object _oLock;
 		#endregion
 
         public Blender()
@@ -33,22 +34,35 @@ namespace ingenie.plugins
             _dtStatusChanged = DateTime.Now;
             _sWorkFolder = sWorkFolder;
             _cPreferences = new Preferences(sWorkFolder, sData);
-        }
+			_oLock = new object();
+		}
         public void Prepare()
         {
-            try
+			lock (_oLock)
+			{
+				if (_bPrepared)
+				{
+					(new Logger()).WriteWarning("Blender has already prepared!");
+					return;
+				}
+				_bPrepared = true;
+			}
+			try
             {
 				if (null != _cPreferences.iVideo)
 				{
 					if (!_cPreferences.bExists)
 					{
-						(new Logger()).WriteDebug2("render from prepare");
-						Render(_cPreferences.sBlendFile, _cPreferences.sPythonFile, _cPreferences.sOutputTarget, "0", _cPreferences.bUseOutput);
+						(new Logger()).WriteDebug2("render from prepare [pf="+ _cPreferences.sPythonFile + "]");
+						Render(_cPreferences.sBlendFile, _cPreferences.sPythonFile, _cPreferences.sOutputTarget, "0", _cPreferences.bUseOutput, _cPreferences.bZip);
 					}
 					_cPreferences.EffectVideoInit();
 					(_iEffect = (BTL.IEffect)_cPreferences.iVideo).Prepare();
 				}
-                if (null != Prepared)
+				else
+					_eStatus = BTL.EffectStatus.Preparing;
+
+				if (null != Prepared)
                     Plugin.EventSend(Prepared, this);
                 (new Logger()).WriteDebug3("prepared");
             }
@@ -73,6 +87,9 @@ namespace ingenie.plugins
 			foreach (FileInfo fi in source.GetFiles())
 				fi.CopyTo(Path.Combine(target.ToString(), fi.Name), true);
 
+			// если мозг ебёт при копировании файлов, то копировать вот этой штукой:
+			//new CopyFileExtended(sFile, Path.Combine(_cPreferences._sOutputTarget, Path.GetFileName(sFile)), 0, 1000);
+
 			// Copy each subdirectory using recursion.
 			foreach (DirectoryInfo diSourceSubDir in source.GetDirectories())
 			{
@@ -81,8 +98,21 @@ namespace ingenie.plugins
 				CopyAll(diSourceSubDir, nextTargetSubDir);
 			}
 		}
-		private void Render(string sBlendFile, string sPythonFile, string sOutput, string sPrefix, bool bUseOutput)//(System.Diagnostics.ProcessStartInfo cProcessStartInfo)
+		private void Render(string sBlendFile, string sPythonFile, string sOutput, string sPrefix, bool bUseOutput, bool bZip)//(System.Diagnostics.ProcessStartInfo cProcessStartInfo)
         {
+			//int nPF = Convert.ToInt32(Path.GetFileName(sPythonFile).Substring(3, 4), 16) - 1;
+			//string sPF = Path.Combine(Path.GetTempPath(), ("tmp" + nPF.ToString("X") + ".tmp"));
+			//if (File.Exists(sPF))
+			//	(new Logger()).WriteNotice("render task start [file is there! " + sPF + "]");
+			//else
+			//	(new Logger()).WriteNotice("render task start [no file! " + sPF + "]");
+
+
+
+
+
+
+
 			string sTaskFoldername, sTaskFolder, sPythonFilename;
 			while (Directory.Exists(sTaskFolder = Path.Combine(_cPreferences.sPath, sTaskFoldername = Path.GetRandomFileName()))) ;
 			Directory.CreateDirectory(sTaskFolder);
@@ -90,10 +120,28 @@ namespace ingenie.plugins
 			File.WriteAllText(sPythonFile, File.ReadAllText(sPythonFile, cEncoding).Replace("{%_RENDER_FOLDER_%}", sTaskFoldername), cEncoding);
 			(new Logger()).WriteNotice("render task start [" + sTaskFolder + "][" + sBlendFile + "][" + sPythonFile + "][" + sOutput + "]");
 			File.Copy(sPythonFile, Path.Combine(sTaskFolder, sPythonFilename = Path.GetFileName(sPythonFile)));
-			File.WriteAllLines(Path.Combine(sTaskFolder, "task"), new string[] { sBlendFile, sPythonFilename, sPrefix, bUseOutput.ToString() });
+			File.WriteAllLines(Path.Combine(sTaskFolder, "task"), new string[] { sBlendFile, sPythonFilename, sPrefix, bUseOutput.ToString(), bZip ? "zip_yes" : "zip_no" });
+
+
+
+
+
+
+
+			//File.Copy(sPythonFile, Path.Combine(Path.GetTempPath(), sPythonFilename + ".py"));
+
+			//if (File.Exists(sPF))
+			//	(new Logger()).WriteNotice("render task start2 [file is there! " + sPF + "]");
+			//else
+			//	(new Logger()).WriteNotice("render task start2 [no file! " + sPF + "]");
+
+
+
+
+
 
 			string sResultFolder = Path.Combine(sTaskFolder, "result");
-			DateTime dtTimeout = DateTime.Now.AddMinutes(10);  // каминап теперь 7 минут где-то
+			DateTime dtTimeout = DateTime.Now.AddMinutes(30);  // каминап теперь 17 минут где-то... иногда 24  (на normal priority на фоне эфира)
 			while(!Directory.Exists(sResultFolder))
 			{
 				if(DateTime.Now > dtTimeout)
@@ -104,6 +152,12 @@ namespace ingenie.plugins
 					{
 						Directory.Delete(sOutput);
 						(new Logger()).WriteNotice("пустая директория удалена после таймаута: [" + sOutput + "]");
+
+						if (null != _cPreferences.sPythonFile && File.Exists(_cPreferences.sPythonFile))
+						{
+							File.Delete(_cPreferences.sPythonFile);
+							(new Logger()).WriteDebug("deleted on timeout: [pythonf=" + _cPreferences.sPythonFile + "]");
+						}
 					}
 					return;
 				}
@@ -159,8 +213,8 @@ namespace ingenie.plugins
 							_cPreferences.cData.Request(Render);
 						else
 						{
-							(new Logger()).WriteDebug2("render from start");
-							Render(_cPreferences.sBlendFile, _cPreferences.sPythonFile, _cPreferences.sOutputTarget, "0", _cPreferences.bUseOutput);
+							(new Logger()).WriteDebug2("render from start [pf=" + _cPreferences.sPythonFile + "]");
+							Render(_cPreferences.sBlendFile, _cPreferences.sPythonFile, _cPreferences.sOutputTarget, "0", _cPreferences.bUseOutput, _cPreferences.bZip);
 						}
 						Stop();
 					}
@@ -204,8 +258,13 @@ namespace ingenie.plugins
 						_iEffect.Stop();
 				}
 				(new Logger()).WriteDebug("stopped: [blendf=" + _cPreferences.sBlendFile + "][pythonf=" + _cPreferences.sPythonFile + "]");
-            }
-            catch (Exception ex)
+				if (null != _cPreferences.sPythonFile && File.Exists(_cPreferences.sPythonFile))
+				{
+					File.Delete(_cPreferences.sPythonFile);
+					(new Logger()).WriteDebug("deleted: [pythonf=" + _cPreferences.sPythonFile + "]");
+				}
+			}
+			catch (Exception ex)
             {
                 (new Logger()).WriteError(ex);
             }

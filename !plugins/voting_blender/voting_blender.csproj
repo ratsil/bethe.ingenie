@@ -1,0 +1,91 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{18A6D4DC-1530-4F73-8E61-0FE6068EBBFA}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>ingenie.plugins</RootNamespace>
+    <AssemblyName>voting</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>\projects\!bin\$(SolutionName)\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>\projects\!obj\$(SolutionName)\$(MSBuildProjectName)\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>\projects\!bin\$(SolutionName)\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>\projects\!obj\$(SolutionName)\$(MSBuildProjectName)\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Logger.cs" />
+    <Compile Include="Preferences.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Voting.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="preferences.xml">
+      <SubType>Designer</SubType>
+    </Content>
+    <Content Include="template.xml">
+      <SubType>Designer</SubType>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\helpers\common\helpers.common\helpers.common.csproj">
+      <Project>{FBEBA6DC-8EA6-49A9-8CB6-E4DD9D1512DE}</Project>
+      <Name>helpers.common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\helpers\video\PixelsMap\PixelsMap.csproj">
+      <Project>{31E66AA5-C483-4150-8AC0-6F0240F52029}</Project>
+      <Name>PixelsMap</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\BTL\BTL.csproj">
+      <Project>{06170AA8-16F3-4232-A799-4B181C7F9196}</Project>
+      <Name>BTL</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\blender\blender.csproj">
+      <Project>{8478AD6D-18E7-4CDF-B3B3-74F96233CC01}</Project>
+      <Name>blender</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ingenie.plugins\ingenie.plugins.csproj">
+      <Project>{5FC0EA93-028A-40E8-ACE3-B75DC74B5911}</Project>
+      <Name>ingenie.plugins</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

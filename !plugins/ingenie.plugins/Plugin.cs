@@ -121,12 +121,14 @@ namespace ingenie.plugins
                 return _dtStatusChanged;
             }
         }
+        public string sFile;
         static string _sPluginFileLast = "";
         private ulong _nFrameReference;
         public Plugin(string sFile, string sClass, string sData)
         {
             try
             {
+                this.sFile = sFile;
                 if (_sPluginFileLast != sFile)
                     (new Logger()).WriteDebug4("plugin: constructor: before CreateInstanceFrom: [sFile = " + (_sPluginFileLast = sFile) + "]");
                 System.Runtime.Remoting.ObjectHandle cHandle = Activator.CreateInstanceFrom(AppDomain.CurrentDomain, sFile, "ingenie.plugins." + sClass);
@@ -136,20 +138,32 @@ namespace ingenie.plugins
             }
             catch (Exception ex)
             {
-                throw new Exception("указанный тип [" + sClass + "] не реализует API плагина [ingenie.plugins.IPlugin]", ex); //TODO LANG
+				throw new Exception("указанный тип [" + sClass + "] не реализует API плагина [ingenie.plugins.IPlugin]", ex); //TODO LANG
             }
         }
         ~Plugin()
         {
-            Dispose();
+            try
+            {
+                Dispose();
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
         }
         public void Dispose()
         {
             try
             {
-                Stop();
+                lock (_oSyncRoot)
+                    if (_cRemoteInstance != null)
+                        Stop();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
         }
 
         public void Prepare()
@@ -183,7 +197,7 @@ namespace ingenie.plugins
 			lock (_oSyncRoot)
 			{
 				if (null != _cRemoteInstance)
-					dAction = _cRemoteInstance.Stop;  // должна быть над проверкой (null != _cPluginDomain)
+					dAction = _cRemoteInstance.Stop;
 				else
 					throw new Exception("необходимо сначала создать плагин"); //TODO LANG
 			}

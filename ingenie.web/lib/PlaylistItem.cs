@@ -33,7 +33,7 @@ namespace ingenie.web.lib
 		public int nAtomHashCode;
 		public int nEffectID; // это BTL effect hash
 		public long nID;
-		public Advertisement _cAdvertSCR;
+        public Advertisement _cAdvertSCR;
 		public Clip _cClipSCR;
 		public PlaylistItem()
 		{
@@ -44,5 +44,9 @@ namespace ingenie.web.lib
 			bFileExist = true;
 			bFileIsImage = false;
 		}
-	}
+        public string ToStringShort()
+        {
+            return "[pli=[type=" + _eType + "][first=" + bIsFirstItemInBlock + "][file=" + sFilename + "][id=" + nID + "][advid=" + (_cAdvertSCR == null ? "" : "" + _cAdvertSCR.nPlaylistID) + "][clipid=" + (_cClipSCR == null ? "" : "" + _cClipSCR.nID) + "]]";
+        }
+    }
 }

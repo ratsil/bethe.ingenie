@@ -19,6 +19,7 @@ namespace ingenie.web.lib
 		public string sRotation;
 		public bool bLocked;
 		public bool bSmoking;
-		public string sClassName;
+        public bool bCached;
+        public helpers.replica.pl.Class[] aClasses;
 	}
 }

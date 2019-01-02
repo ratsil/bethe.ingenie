@@ -1,49 +1,23 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<template>
-  <plugin file="d:/cues/roll/roll.dll" class="Roll">
-    <data request="yandex.news" template="0" interval="5000">
-      <roll layer="53" direction="RightToLeft" speed="100" cuda="true" queue="3" pause="5000">
-        <area left="0" top="30" width="1920" height="53" />
-      </roll>
-      <text cuda="false">
-        <font name="AG_Futura" size="40" style="regular">
-          <color alpha="255" red="255" green="255" blue="255" />
-          <border width="0">
-            <color alpha="255" red="0" green="0" blue="0" />
-          </border>
-        </font>
-      </text>
-    </data>
-  </plugin>
-  <plugin file="d:/cues/roll/roll.dll" class="Roll">
-    <data request="yandex.weather" template="0" value="москва;курск" interval="5000">
-      <roll layer="53" direction="RightToLeft" speed="100" cuda="true" queue="3" pause="5000">
-        <area left="0" top="30" width="1920" height="53" />
-      </roll>
-      <item cuda="false">
-        <font name="AG_Futura" size="40" style="regular">
-          <color alpha="255" red="255" green="255" blue="255" />
-          <border width="0">
-            <color alpha="255" red="0" green="0" blue="0" />
-          </border>
-        </font>
-      </item>
-      <item id="region" cuda="false">
-        <font name="AG_Futura" size="40" style="regular">
-          <color alpha="255" red="255" green="255" blue="255" />
-          <border width="0">
-            <color alpha="255" red="0" green="0" blue="0" />
-          </border>
-        </font>
-      </item>
-      <item id="temperature" cuda="false">
-        <font name="AG_Futura" size="40" style="regular">
-          <color alpha="255" red="255" green="255" blue="255" />
-          <border width="0">
-            <color alpha="255" red="0" green="0" blue="0" />
-          </border>
-        </font>
-      </item>
-    </data>
-  </plugin>
+<template destroy="self">
+	<plugin file="/path/hashtags.dll" class="Hashtags">
+		<data >
+			<poll name="FIGHT" dt="14.09.2015 19:56:02">
+				<description>
+					POLL DESCRIPTION LINE1
+					POLL DESCRIPTION LINE2
+					POLL DESCRIPTION LINEN
+				</description>
+				<candidate name="option1" image="1.jpg" description="OPTION1 DECRIPTION" />
+				<candidate name="option2" image="2.jpg" description="OPTION2 DECRIPTION" />
+			</poll>
+
+			<roll prerender_queue="40" layer="53" direction="UpToDown" cuda="false" stop_on_empty="true" render_on_prepare="false" turn_off_queue="true">
+				<offset x="135" y="63" />
+				<size width="1530" height="50" />
+				<effects>
+				</effects>
+			</roll>
+		</data>
+	</plugin>
 </template>

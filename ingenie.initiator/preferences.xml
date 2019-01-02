@@ -10,9 +10,12 @@
 		</device>
 	</btl>
 	<ingenie>
-		<initiator>
-			<process name="ingenie.server" owner="replica" />
-			<blender path="C:/Program Files/Blender Foundation/Blender/blender.exe" tasks="d:/cache/initiator/" queue="5" />
+		<initiator restart="/path/restart">  <!--file with restart instructions-->
+			<process name="ingenie.server" owner="replica" arguments="preferences_scr_btl.xml" config="scr_btl.config" hide="true" focus="false" priority="high"/>   <!-- idle belownormal normal abovenormal high realtime  -->
+			<process name="ingenie.server" owner="replica" arguments="preferences_scr_device.xml" config="scr_device.config"/>
+			<process name="ingenie.server" owner="replica" arguments="preferences_linear_btl.xml" config="linear_btl.config"/>
+			<process name="ingenie.server" owner="replica" arguments="preferences_linear_device.xml" config="linear_device.config"/>
+			<blender path="/path/blender.exe" tasks="/path/" queue="5" />
 		</initiator>
 		<userspace server="127.0.0.1" />
 		<shared port="1238" />
@@ -22,8 +25,8 @@
 			<cuda version="21" />
 		</pixelsmap>
 		<common>
-			<logger>
-				<mail subject="CHANNEL" source="alerting@example.com" server="smtp.example.com" password="">
+			<logger level="debug2" gc_block="false">
+				<mail subject="CHANNEL" source="alerting@example.com" server="smtp.example.com" password="" send_interval="300">
 					<targets>
 						<target level="warning">user1@example.com,user2@example.com</target>
 						<target level="error">user@example.com</target>

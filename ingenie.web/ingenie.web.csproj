@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -13,7 +13,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ingenie.web</RootNamespace>
     <AssemblyName>ingenie.web</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <SccProjectName>
     </SccProjectName>
     <SccLocalPath>
@@ -48,6 +48,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <PackageAsSingleFile>false</PackageAsSingleFile>
     <PublishDatabases>false</PublishDatabases>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
@@ -57,6 +58,7 @@
     <DefineConstants>LOCAL</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.CSharp" />
@@ -82,6 +84,7 @@
     <Content Include="ClientBin\presentation.xap" />
     <Content Include="ClientBin\scr.xap" />
     <Content Include="index.html" />
+    <Content Include="preferences_player.xml" />
     <Content Include="presentation.html" />
     <Content Include="services\Management.asmx" />
     <Content Include="services\Prompter.asmx" />
@@ -89,7 +92,7 @@
     <Content Include="services\Player.asmx" />
     <Content Include="management.html" />
     <Content Include="services\Preferences.asmx" />
-    <Content Include="preferences.xml">
+    <Content Include="preferences_cues.xml">
       <SubType>Designer</SubType>
     </Content>
     <Content Include="Silverlight.js" />
@@ -142,6 +145,10 @@
     <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\!helpers\helpers.replica\helpers.replica.csproj">
+      <Project>{1f234a17-6ac8-4dd1-84e6-76c4b40994bf}</Project>
+      <Name>helpers.replica</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\helpers\common\helpers.common\helpers.common.csproj">
       <Project>{fbeba6dc-8ea6-49a9-8cb6-e4dd9d1512de}</Project>
       <Name>helpers.common</Name>
@@ -154,14 +161,14 @@
       <Project>{85BEEB90-91A9-4815-A695-89CA4C1D6D3E}</Project>
       <Name>ffmpeg.net</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\!helpers\helpers.replica\helpers.replica.csproj">
-      <Project>{1F234A17-6AC8-4DD1-84E6-76C4B40994BF}</Project>
-      <Name>helpers.replica</Name>
-    </ProjectReference>
     <ProjectReference Include="..\InGenie.Userspace\ingenie.userspace.csproj">
       <Project>{ED0986A8-4C34-49CA-9642-20EEDE2BA337}</Project>
       <Name>ingenie.userspace</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Properties\PublishProfiles\ingenie.debug.pubxml" />
+    <None Include="Properties\PublishProfiles\ingenie.release.pubxml" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

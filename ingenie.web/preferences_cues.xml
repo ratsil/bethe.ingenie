@@ -1,0 +1,312 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<preferences>
+	<ingenie>
+		<web>
+			<clients>
+				<scr name="SCR">
+					<!--  тут всё, что нужно в клиенте и в cues.aspx  -->
+					<presets>
+						<preset name="default" id="0" folder="default" channel="channel1" caption="Select template --->" />
+						<preset name="orderdesk" id="1" folder="template1" channel="channel1" caption="Template1" />
+						<preset name="vegas" id="2" folder="template2" channel="channel1" caption="Template2" />
+						<preset name="2sprivetom" id="3" folder="template3" channel="channel1" caption="Template3" />
+						<preset name="paranorm" id="4" folder="template4" channel="channel1" caption="Template4" />
+					</presets>
+					<plaques>
+						<plaque id_preset="1" opened="false" height="200"   />
+						<!-- default height = 300 -->
+						<plaque id_preset="2" opened="false" height="200"   />
+						<plaque id_preset="3" opened="false" height="200"   />
+						<plaque id_preset="4" opened="false" height="200"   />
+					</plaques>
+					<templates>
+						<masks channel="{channel}"  preset="{preset}" />
+						<template bind="playlist" file="Player Playlist">
+							<player_parameters>
+								<parameters id_preset="0" text="playlist" is_visible="true" is_enabled="true" opened="true" first_action="prepare" clip_chooser_visible="true" clip_chooser_opened="true" folder="/path/" />
+								<parameters id_preset="1" text="playlist" is_visible="true" is_enabled="true" opened="true" first_action="prepare" clip_chooser_visible="true" clip_chooser_opened="true" folder="/path/" />
+								<parameters id_preset="3" text="playlist" is_visible="true" is_enabled="true" opened="true" first_action="prepare" clip_chooser_visible="true" clip_chooser_opened="true" folder="/path/" />
+								<parameters id_preset="4" text="playlist" is_visible="true" is_enabled="true" opened="true" first_action="prepare" clip_chooser_visible="true" clip_chooser_opened="true" folder="/path/template4/" />
+							</player_parameters>
+						</template>
+						<template bind="channel_credits" file="/path/{channel}/credits.xml">
+							<preset_parameters>
+								<parameters id_preset="0" text="Titles CHANNEL1" is_enabled="false" is_visible="false" first_action="start" />
+								<parameters id_preset="1" text="Titles CHANNEL1" is_enabled="false" is_visible="false" first_action="start" />
+								<parameters id_preset="4" text="Titles CHANNEL1" is_enabled="false" is_visible="false" first_action="start" />
+							</preset_parameters>
+						</template>
+						<template bind="channel_logo" file="/path/{preset}/logo_channel.xml" >
+							<preset_parameters>
+								<parameters id_preset="0" text="Logo CHANNEL1" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="1" text="Logo CHANNEL1" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="3" text="Logo CHANNEL1" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="4" text="Logo CHANNEL1" is_enabled="true" is_visible="true" first_action="start" />
+							</preset_parameters>
+							<offsets>
+								<offset id_preset="1" in="0" type="studio" />
+								<offset id_preset="1" in="0" type="clip" />
+								<offset id_preset="1" in="0" type="file" />
+								<offset id_preset="1" out="0" type="advblockitem" />
+								<!-- do_if_last="true" pre_type  pre_class next_type next_class -->
+								<offset id_preset="1" out="-100" type="clip" next_type="advblockitem"  />
+								<offset id_preset="3" in="0" type="studio" />
+								<offset id_preset="3" in="0" type="clip" />
+								<offset id_preset="3" in="0" type="file" />
+								<offset id_preset="3" out="0" type="advblockitem" />
+								<!-- do_if_last="true" pre_type  pre_class next_type next_class -->
+								<offset id_preset="4" in="0" type="studio" />
+								<offset id_preset="4" in="0" type="clip" />
+								<offset id_preset="4" in="0" type="file" />
+								<offset id_preset="4" out="0" type="advblockitem" />
+								<!-- do_if_last="true" pre_type  pre_class next_type next_class -->
+								<offset id_preset="4" out="-100" type="clip" next_type="advblockitem"  />
+							</offsets>
+						</template>
+						<template bind="channel_user1" file="/path/{channel}/age16.xml" >
+							<preset_parameters>
+								<parameters id_preset="0" text="16+ smoking" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="1" text="16+ smoking" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="3" text="16+ smoking" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="4" text="16+ smoking" is_enabled="true" is_visible="true" first_action="start" />
+							</preset_parameters>
+							<offsets>
+								<offset id_preset="1" in="0" type="clip" />
+								<offset id_preset="3" in="0" type="clip" />
+								<offset id_preset="4" in="0" type="clip" />
+							</offsets>
+						</template>
+						<template bind="channel_user2" file="/path/{preset}/partner.xml" >
+							<preset_parameters>
+								<parameters id_preset="0" text="#hashtag" is_enabled="true" is_visible="true" />
+								<parameters id_preset="1" text="Partner" is_enabled="true" is_visible="true" />
+								<parameters id_preset="3" text="Partner" is_enabled="true" is_visible="true" />
+								<parameters id_preset="4" text="Partner" is_enabled="true" is_visible="true" />
+							</preset_parameters>
+						</template>
+						<template bind="channel_user3" file="/path/{channel}/logo_advert.xml" >
+							<preset_parameters>
+								<parameters id_preset="0" text="user3" is_enabled="true" is_visible="false" />
+								<parameters id_preset="1" text="Advertisement Logo" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="3" text="Advertisement Logo" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="4" text="Advertisement Logo" is_enabled="true" is_visible="true" first_action="start" />
+							</preset_parameters>
+							<offsets>
+								<offset id_preset="1" in="0" type="advblockitem" class="advertisement_with_logo" />
+								<offset id_preset="1" in="0" type="advblockitem" class="design_with_dtmf_out" />
+								<offset id_preset="1" in="0" type="advblockitem" class="design_with_12plus" />
+								<offset id_preset="1" in="0" type="advblockitem" class="design_common" />
+								<offset id_preset="1" out="0" type="studio" />
+								<offset id_preset="1" out="0" type="clip" />
+								<offset id_preset="1" out="0" type="file" />
+								<offset id_preset="1" out="0" type="advblockitem" class="advertisement_without_logo" />
+								<offset id_preset="1" out="0" type="advblockitem" class="design_with_12plus_without_logo" />
+								<offset id_preset="1" out="0" type="advblockitem" class="design_with_dtmf_in" />
+								<offset id_preset="1" out="0" type="advblockitem" class="comingup" />
+
+								<offset id_preset="3" out="0" type="studio" />
+								<offset id_preset="3" in="0" type="advblockitem" class="advertisement_with_logo" />
+								<offset id_preset="3" in="0" type="advblockitem" class="design_with_dtmf_out" />
+								<offset id_preset="3" in="0" type="advblockitem" class="design_with_12plus" />
+								<offset id_preset="3" in="0" type="advblockitem" class="design_common" />
+								<offset id_preset="3" in="0" type="advblockitem" class="comingup" />
+								<offset id_preset="3" out="0" type="clip" />
+								<offset id_preset="3" out="0" type="file" />
+								<offset id_preset="3" out="0" type="advblockitem" class="advertisement_without_logo" />
+								<offset id_preset="3" out="0" type="advblockitem" class="design_with_12plus_without_logo" />
+								<offset id_preset="3" out="0" type="advblockitem" class="design_with_dtmf_in" />
+
+								<offset id_preset="4" in="0" type="advblockitem" class="advertisement_with_logo" />
+								<offset id_preset="4" in="0" type="advblockitem" class="design_with_dtmf_out" />
+								<offset id_preset="4" in="0" type="advblockitem" class="design_with_12plus" />
+								<offset id_preset="4" in="0" type="advblockitem" class="design_common" />
+								<offset id_preset="4" out="0" type="studio" />
+								<offset id_preset="4" out="0" type="clip" />
+								<offset id_preset="4" out="0" type="file" />
+								<offset id_preset="4" out="0" type="advblockitem" class="advertisement_without_logo" />
+								<offset id_preset="4" out="0" type="advblockitem" class="design_with_12plus_without_logo" />
+								<offset id_preset="4" out="0" type="advblockitem" class="design_with_dtmf_in" />
+								<offset id_preset="4" out="0" type="advblockitem" class="comingup" />
+							</offsets>
+						</template>
+						<template bind="channel_user4" file="/path/{channel}/weather.xml" >
+							<preset_parameters>
+								<parameters id_preset="0" text="user4" is_enabled="true" is_visible="false" />
+								<parameters id_preset="1" text="Wether" is_enabled="true" is_visible="true" />
+								<parameters id_preset="3" text="user4" is_enabled="true" is_visible="false" />
+								<parameters id_preset="4" text="Wether" is_enabled="true" is_visible="true" />
+							</preset_parameters>
+						</template>
+						<template bind="channel_chat" file="/path/{preset}/chat.xml">
+							<preset_parameters>
+								<parameters id_preset="0" text="Chat" is_enabled="true" is_visible="false" first_action="start" />
+								<parameters id_preset="1" text="Chat" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="2" text="Chat" is_enabled="true" is_visible="false" first_action="start" />
+								<parameters id_preset="3" text="Chat" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="4" text="Chat" is_enabled="true" is_visible="true" first_action="start" />
+							</preset_parameters>
+							<offsets>
+								<offset id_preset="1" out="-450" type="clip" next_type="advblockitem"  />
+								<!-- do_if_last="true" pre_type  pre_class next_type next_class -->
+								<offset id_preset="1" out="0" type="advblockitem"  />
+								<offset id_preset="1" in="0" type="clip"  />
+								<offset id_preset="1" in="0" type="studio"  />
+
+								<offset id_preset="3" out="0" type="advblockitem"  />
+								<!--								<offset id_preset="3" out="0" type="studio"  />     -->
+
+								<offset id_preset="4" out="-450" type="clip" next_type="advblockitem"  />
+								<!-- do_if_last="true" pre_type  pre_class next_type next_class -->
+								<offset id_preset="4" out="0" type="advblockitem"  />
+								<offset id_preset="4" in="0" type="clip"  />
+								<offset id_preset="4" in="0" type="studio"  />
+							</offsets>
+						</template>
+						<template bind="preset_logo" file="/path/{preset}/logo.xml" >
+							<preset_parameters>
+								<parameters id_preset="1" text="Hashtag" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="2" text="Hashtag" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="3" text="Hashtag" is_enabled="true" is_visible="true" first_action="start" autostart="false" />
+								<parameters id_preset="4" text="Hashtag" is_enabled="true" is_visible="true" first_action="start" />
+							</preset_parameters>
+							<offsets>
+								<offset id_preset="1" in="0" type="studio" />
+								<offset id_preset="1" in="0" type="clip" />
+								<offset id_preset="1" in="0" type="file" />
+								<offset id_preset="1" out="-225" type="clip" next_type="advblockitem"  />
+								<offset id_preset="1" out="0" type="advblockitem" />
+								<!-- do_if_last="true" pre_type  pre_class next_type next_class -->
+								<offset id_preset="3"  out="0" type="advblockitem"  />
+								<!-- do_if_last="true" pre_type  pre_class next_type next_class -->
+								<offset id_preset="4" in="0" type="studio" />
+								<offset id_preset="4" in="0" type="clip" />
+								<offset id_preset="4" in="0" type="file" />
+								<offset id_preset="4" out="0" type="advblockitem" />
+								<!-- do_if_last="true" pre_type  pre_class next_type next_class -->
+								<offset id_preset="4" out="-225" type="clip" next_type="advblockitem"  />
+							</offsets>
+						</template>
+						<template bind="preset_bumper" file="/path/{preset}/bumper.xml" >
+							<preset_parameters>
+								<parameters id_preset="1" text="Bumper" is_enabled="true" is_visible="false" first_action="start" />
+								<parameters id_preset="2" text="Bumper" is_enabled="true" is_visible="false" first_action="start" />
+								<parameters id_preset="3" text="Bumper" is_enabled="true" is_visible="false" first_action="start" />
+								<parameters id_preset="4" text="Bumper" is_enabled="true" is_visible="false" first_action="start" />
+							</preset_parameters>
+						</template>
+						<template bind="preset_credits" file="/path/{preset}/credits.xml" >
+							<preset_parameters>
+								<parameters id_preset="1" text="Title" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="2" text="Title" is_enabled="false" is_visible="true" first_action="start" />
+								<parameters id_preset="3" text="Title" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="4" text="Title" is_enabled="true" is_visible="true" first_action="start" />
+							</preset_parameters>
+							<offsets>
+								<offset id_preset="1" in="500" type="clip" />
+								<offset id_preset="1" in="-625" safe="2500" type="clip" />
+
+								<offset id_preset="3" in="500" type="clip" />
+								<offset id_preset="3" in="-650" safe="2500" type="clip" />
+
+								<offset id_preset="4" in="500" type="clip" />
+								<offset id_preset="4" in="-625" safe="2500" type="clip" />
+							</offsets>
+							<conflicts>
+								<conflict id_preset="1" bind="preset_user1" />
+								<conflict id_preset="2" bind="channel_chat" />
+								<conflict id_preset="3" bind="channel_chat" />
+							</conflicts>
+						</template>
+						<template bind="preset_notice" file="/path/{preset}/notice.xml" />
+						<template bind="preset_credits_advert" file="/path/{preset}/credits_advert.xml" >
+							<preset_parameters>
+								<parameters id_preset="1" text="show with ad" is_enabled="false" is_visible="false" />
+								<parameters id_preset="2" text="show with ad" is_enabled="true" is_visible="false" />
+								<parameters id_preset="3" text="show with ad" is_enabled="true" is_visible="true" />
+								<parameters id_preset="4" text="show with ad" is_enabled="false" is_visible="false" />
+							</preset_parameters>
+							<conflicts>
+								<conflict id_preset="1" bind="preset_user1" />
+							</conflicts>
+						</template>
+						<template bind="preset_notice_advert" file="/path/{preset}/notice_advert.xml" />
+						<template bind="preset_credits_trail" file="/path/{preset}/credits_trail.xml" >
+							<preset_parameters>
+								<parameters id_preset="1" text="show promo" is_enabled="false" is_visible="false" />
+								<parameters id_preset="2" text="show promo" is_enabled="false" is_visible="true" />
+								<parameters id_preset="3" text="show promo" is_enabled="true" is_visible="true" />
+								<parameters id_preset="4" text="show promo" is_enabled="false" is_visible="false" />
+							</preset_parameters>
+							<conflicts>
+								<conflict id_preset="1" bind="channel_chat" />
+								<conflict id_preset="1" bind="preset_user1" />
+								<conflict id_preset="3" bind="channel_chat" />
+								<conflict id_preset="4" bind="channel_chat" />
+							</conflicts>
+						</template>
+						<template bind="preset_notice_trail" file="/path/{preset}/notice_trail.xml" />
+						<template bind="dtmf_in" file="/path/{channel}/dtmf_in.xml" />
+						<template bind="dtmf_out" file="/path/{channel}/dtmf_out.xml" />
+						<template bind="preset_user1" file="/path/voting.xml" >
+							<preset_parameters>
+								<parameters id_preset="1" text="Voting" is_enabled="true" is_visible="true" first_action="start"  />
+								<parameters id_preset="2" text="user1" is_enabled="true" is_visible="false" first_action="start" />
+								<parameters id_preset="3" text="Voting" is_enabled="true" is_visible="false" first_action="start"  />
+								<parameters id_preset="4" text="Voting" is_enabled="true" is_visible="true" first_action="start"  />
+							</preset_parameters>
+						</template>
+						<template bind="preset_user2" file="/path/{preset}/user2.xml" >
+							<preset_parameters>
+								<parameters id_preset="1" text="Timer" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="2" text="user2" is_enabled="true" is_visible="false" first_action="start" />
+								<parameters id_preset="3" text="Timer" is_enabled="true" is_visible="false" first_action="start" />
+								<parameters id_preset="4" text="Timer" is_enabled="true" is_visible="true" first_action="start" />
+							</preset_parameters>
+						</template>
+						<template bind="preset_user3" file="/path/{preset}/partner2.xml" >
+							<preset_parameters>
+								<parameters id_preset="1" text="Partner-2" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="2" text="Partner-2" is_enabled="true" is_visible="false" first_action="start" />
+								<parameters id_preset="3" text="Partner-2" is_enabled="true" is_visible="false" first_action="start" />
+								<parameters id_preset="4" text="Partner-2" is_enabled="true" is_visible="false" first_action="start" />
+							</preset_parameters>
+						</template>
+						<template bind="preset_user4" file="/path/{channel}/program_news.xml" >
+							<preset_parameters>
+								<parameters id_preset="1" text="News" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="2" text="News" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="3" text="News" is_enabled="true" is_visible="true" first_action="start" />
+								<parameters id_preset="4" text="News" is_enabled="true" is_visible="true" first_action="start" />
+							</preset_parameters>
+							<offsets>
+								<offset id_preset="1" in="25" out="-25" class="program_news" />
+								<offset id_preset="3" in="25" out="-25" class="program_news" />
+								<offset id_preset="4" in="25" out="-25" class="program_news" />
+							</offsets>
+						</template>
+						<template bind="preset_sequence" file="/path/{preset}/sequence.xml" tag="//127.0.0.1/trails/" >
+							<preset_parameters>
+								<parameters id_preset="1" text="PNG-seq" is_enabled="true" is_visible="true" first_action="prepare" />
+								<parameters id_preset="2" text="PNG-seq" is_enabled="true" is_visible="true" first_action="prepare" />
+								<parameters id_preset="3" text="PNG-seq" is_enabled="true" is_visible="true" first_action="prepare" />
+								<parameters id_preset="4" text="PNG-seq" is_enabled="true" is_visible="true" first_action="prepare" />
+							</preset_parameters>
+						</template>
+					</templates>
+					<dbi_web_service server="127.0.0.1" user_name="vj" user_pass="vj" />
+					<!--   replica web server   -->
+				</scr>
+			</clients>
+		</web>
+		<userspace server="127.0.0.1" />
+		<shared port="1238" />
+	</ingenie>
+	<helpers>
+		<common>
+			<logger level="debug2"  subfolder="channel" >
+			</logger>
+			<!--			<database server="127.0.0.1" port="5432" name="replica" user="" password="" timeout="240" />    -->
+			<!-- db.channel.replica  -->
+		</common>
+	</helpers>
+</preferences>

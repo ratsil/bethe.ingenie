@@ -28,8 +28,13 @@ namespace ingenie.userspace
 				return new System.Runtime.Remoting.Activation.UrlAttribute("tcp://" + Preferences.cServerIP + ":" + shared.Preferences.nPort);
 			}
 		}
+        static public void Reload()
+        {
+            _cInstance = new Preferences();
+        }
 
-		private IPAddress _cServerIP;
+
+        private IPAddress _cServerIP;
 
 		public Preferences()
 			: base("//ingenie/userspace")

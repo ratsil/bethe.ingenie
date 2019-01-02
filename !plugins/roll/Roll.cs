@@ -38,14 +38,28 @@ namespace ingenie.plugins
         private EventDelegate Prepared;
         private EventDelegate Started;
         private EventDelegate Stopped;
-        private btl.Roll _cRoll;
-        private System.Threading.Timer _cTimerRequest;
-        private List<Item> _aItems;
+		private btl.Roll _cRoll;
+		private btl.Playlist _cPLBackground;
+		private btl.Animation _cAnimIn;
+		private btl.Animation _cAnimLoop;
+		private btl.Animation _cAnimOut;
+		private btl.Playlist _cPLMask;
+		private btl.Animation _cMaskIn;
+		private btl.Animation _cMaskLoop;
+		private btl.Animation _cMaskOut;
+		private btl.Animation _cMaskAllOff;
+		private btl.Effect _cLastAddedEffect;
+		private int _nWaitAndStop;
+		private bool _RollFeedStop = false;
+        private Area _stAreaComposite;
+		private System.Threading.Timer _cTimerRequest;
+		private System.Threading.Timer _cTimerStop;
+		private List<Item> _aItems;
         private ushort _nWidthOfSpace;
 		private Thread _cRollFeed;
-        #endregion
+		#endregion
 
-        public Roll()
+		public Roll()
         {
         }
         public void Create(string sWorkFolder, string sData)
@@ -56,24 +70,69 @@ namespace ingenie.plugins
         {
             try
             {
-                DisCom.Init();
+                //PixelsMap.DisComInit();
 
                 _cRoll = new btl.Roll();
                 _cRoll.eDirection = _cPreferences.eDirection;
                 _cRoll.nSpeed = _cPreferences.nSpeed;
                 _cRoll.stArea = _cPreferences.stArea;
-                _cRoll.bCUDA = _cPreferences.bRollCuda;
+                _cRoll.stMergingMethod = _cPreferences.stRollMerging;
                 _cRoll.nLayer = _cPreferences.nLayer;
                 _cRoll.bOpacity = false;
-                _cRoll.Prepare();
+				_cRoll.EffectIsOnScreen += _cRoll_EffectIsOnScreen;
+				_nWaitAndStop = 0;
 
-                _aItems = new List<Item>();
+				if (_cPreferences.cBackground != null)
+				{
+					_stAreaComposite = new Area((short)(_cPreferences.stArea.nLeft - _cPreferences.cBackground.stArea.nLeft), (short)(_cPreferences.stArea.nTop - _cPreferences.cBackground.stArea.nTop), _cPreferences.stArea.nWidth, _cPreferences.stArea.nHeight);
+					_cRoll.stArea = _cPreferences.cBackground.stArea;
+
+					_cAnimIn = new Animation(_cPreferences.cBackground.sIn, 1, false);
+					_cAnimIn.Prepare();
+					_cAnimLoop = new Animation(_cPreferences.cBackground.sLoop, 0, true);
+					_cAnimLoop.Prepare();
+					_cAnimOut = new Animation(_cPreferences.cBackground.sOut, 1, false);
+					_cAnimOut.Prepare();
+					_cPLBackground = new Playlist();
+					_cPLBackground.bStopOnEmpty = true;
+                    _cPLBackground.EffectAdd(_cAnimIn);
+					_cPLBackground.EffectAdd(_cAnimLoop);
+					_cPLBackground.EffectAdd(_cAnimOut);
+					_cPLBackground.Prepare();
+
+					if (_cPreferences.cBackground.sMaskIn != null && _cPreferences.cBackground.sMaskIn.Length > 0)
+					{
+						_cMaskIn = new Animation(_cPreferences.cBackground.sMaskIn, 1, false);
+						_cMaskIn.Prepare();
+						_cMaskLoop = new Animation(_cPreferences.cBackground.sMaskLoop, 0, true);
+						_cMaskLoop.Prepare();
+						_cMaskOut = new Animation(_cPreferences.cBackground.sMaskOut, 1, false);
+						_cMaskOut.Prepare();
+						_cMaskAllOff = new Animation(_cPreferences.cBackground.sMaskAllOff, 0, true);
+						_cMaskAllOff.Prepare();
+						_cPLMask = new Playlist();
+						_cPLMask.bStopOnEmpty = false;	
+						_cPLMask.EffectAdd(_cMaskIn);
+						_cPLMask.EffectAdd(_cMaskLoop);
+						_cPLMask.EffectAdd(_cMaskOut);
+						_cPLMask.EffectAdd(_cMaskAllOff);
+						_cPLMask.Prepare();
+					}
+				}
+				else
+				{
+					_stAreaComposite = new Area(0, 0, _cPreferences.stArea.nWidth, _cPreferences.stArea.nHeight);
+                }
+				_cRoll.Prepare();
+
+
+				_aItems = new List<Item>();
                 _cTimerRequest = new System.Threading.Timer(TickRequest);
-                TickRequest(null);
+				TickRequest(null);
 				_cRollFeed = new Thread(RollFeed);
 				_cRollFeed.IsBackground = true;
 				_cRollFeed.Start();
-
+				_cTimerStop = new System.Threading.Timer(AsyncStop);
                 if (null != Prepared)
                     Plugin.EventSend(Prepared, this);
                 (new Logger()).WriteDebug3("ok");
@@ -84,7 +143,19 @@ namespace ingenie.plugins
             }
         }
 
-        public void Start()
+		private void _cRoll_EffectIsOnScreen(Effect cSender, Effect cEffect)
+		{
+			if (_RollFeedStop && cEffect == _cLastAddedEffect)
+			{
+				_cTimerStop.Change(_cPreferences.nPause, Timeout.Infinite);
+            }
+		}
+		private void AsyncStop(object cState)
+		{
+			Stop();
+		}
+
+		public void Start()
         {
             _cRoll.Start();
             if (null != Started)
@@ -123,7 +194,10 @@ namespace ingenie.plugins
 		{
 			try
 			{
-				while (true)
+				DateTime dtFirsItem = DateTime.MinValue;
+				int nLoop = 0;
+				bool bFirsTime = true;
+                while (true)
 				{
 					if (_cPreferences.nQueueLength > _cRoll.nEffectsQty)
 					{
@@ -135,15 +209,37 @@ namespace ingenie.plugins
 						ushort nHeight, nTargetHeight, nLineHeight, nPauseDuration = 0, nPreviousPauseDuration = 0;
 						float nSpeed = _cPreferences.nSpeed / 25;
 						uint nFramesIn = 0;
-						int nDelay;
+						int nDelay, nTransDelay = 0;
 						float nMiddleRounded;
 						int nCorrectionPosition = 1;     //UNDONE   Через параметры!!
 						btl.Roll.Keyframe[] aKeyframes = null;
+						nTransDelay = _cPreferences.nDelay / 40;
 
 						foreach (Item cItem in aItems.OrderBy(o => o.dt).Take(_cPreferences.nQueueLength - _cRoll.nEffectsQty).ToArray())
 						{
+							dtNow = DateTime.Now;
+
+							if (_cPreferences.nLoops > 0)  // т.е. тормозимся сами по окончании проигрывания набора элементов столько-то раз
+							{
+								if (dtFirsItem == DateTime.MinValue && aItems.Count(o => o.dt == dtFirsItem) == 1) // 1-й луп был - это последний элемент лупа
+								{
+									dtFirsItem = dtNow;
+									nLoop = 1;
+								}
+								else if (dtFirsItem > DateTime.MinValue && dtFirsItem == cItem.dt)    // очередной луп был  - это последний элемент лупа
+								{
+									dtFirsItem = dtNow;
+									nLoop++;
+								}
+								if (nLoop == _cPreferences.nLoops)
+								{
+									_RollFeedStop = true;
+								}
+							}
+
 							cItem.dt = dtNow.AddSeconds(1);
 							cComposite = ItemParse(cItem);
+							cComposite.stArea = new Area(_stAreaComposite.nLeft, _stAreaComposite.nTop, cComposite.stArea.nWidth, cComposite.stArea.nHeight);
 							aKeyframes = null;
 							if (0 < _cPreferences.nPause)
 							{
@@ -184,7 +280,26 @@ namespace ingenie.plugins
 									}
 								};
 							}
-							_cRoll.EffectAdd(cComposite, aKeyframes, nPauseDuration + nFramesIn / 2);
+							if (bFirsTime)
+							{
+								bFirsTime = false;
+								if (_cPLBackground != null)
+								{
+									btl.Roll.Keyframe[] aBackKeyframes = new BTL.Play.Roll.Keyframe[1] { new btl.Roll.Keyframe() { eType = btl.Roll.Keyframe.Type.hold, nFrame = 0, nPosition = 0 } };
+									_cRoll.EffectAdd(_cPLBackground, aBackKeyframes, 0, false);
+								}
+								if (_cPLMask != null)
+								{
+									btl.Roll.Keyframe[] aMaskKeyframes = new BTL.Play.Roll.Keyframe[1] { new btl.Roll.Keyframe() { eType = btl.Roll.Keyframe.Type.hold, nFrame = 0, nPosition = 0 } };
+                                    _cPLMask.cMask = new Mask() { eMaskType = DisCom.Alpha.mask_all_upper };
+                                    _cRoll.EffectAdd(_cPLMask, aMaskKeyframes, 0, false);
+								}
+							}
+							if (_cPreferences.nLoops > 0)
+								_cLastAddedEffect = cComposite;
+							_cRoll.EffectAdd(cComposite, aKeyframes, (ushort)((nTransDelay + nFramesIn / 2) > 0 ? (nTransDelay + nFramesIn / 2) : 0));
+							if (_RollFeedStop)
+								return;
 						}
 					}
 					Thread.Sleep(1000);
@@ -203,10 +318,18 @@ namespace ingenie.plugins
             {
                 if (null == _cTimerRequest)
                     return;
-				_cRollFeed.Abort();
+				_RollFeedStop = true;
                 _cTimerRequest.Change(Timeout.Infinite, Timeout.Infinite);
-                _cTimerRequest = null;
-                _cRoll.Stop();
+				_cTimerRequest = null;
+				if (_cPLBackground != null)
+					_cPLBackground.Skip(false, 0);
+				if (_cPLMask != null)
+					_cPLMask.Skip(false, 0);
+				if (_cPLBackground != null)
+					while (_cPLBackground.eStatus!= BTL.EffectStatus.Stopped)
+						Thread.Sleep(5);
+
+				_cRoll.Stop();
                 (new Logger()).WriteDebug("stop");
             }
             catch (Exception ex)
@@ -219,8 +342,8 @@ namespace ingenie.plugins
 
         private Composite ItemParse(Item cItem)
         {
-			Composite cRetVal = new Composite(_cPreferences.stArea.nWidth, Composite.Type.Vertical);
-			cRetVal.bCUDA = _cPreferences[null].bCuda;
+			Composite cRetVal = new Composite(_stAreaComposite.nWidth, Composite.Type.Vertical);
+			cRetVal.stMergingMethod = _cPreferences[null].stMerging;
 			MakeComposites(cItem.cXmlNode, null, cRetVal);
 			return cRetVal;
         }
@@ -240,13 +363,15 @@ namespace ingenie.plugins
             string sText = cXmlNode.InnerText;
             sText = sText.RemoveNewLines();
             if (0 == _nWidthOfSpace)
-                _nWidthOfSpace = (ushort)(BTL.Play.Text.Measure("SSS SSS", cPreferencesItem.cFont, 0).nWidth - BTL.Play.Text.Measure("SSSSSS", cPreferencesItem.cFont, 0).nWidth);
+				_nWidthOfSpace = BTL.Play.Text.SizeOfSpaceGet(cPreferencesItem.cFont, 0).nWidth;
             List<EffectVideo> aEffects = new List<EffectVideo>();
             ushort nIdent = 0;
 
-            Text cText = new BTL.Play.Text(sText, cPreferencesItem.cFont, cPreferencesItem.nBorderWidth) { bCUDA = false, stColor = cPreferencesItem.stColor, stColorBorder = cPreferencesItem.stColorBorder };
-            ushort nMaxWidth = _cPreferences.stArea.nWidth;
-            if (nMaxWidth < cText.stArea.nWidth)
+			Text cText;
+			Text cTextSource = new BTL.Play.Text(sText, cPreferencesItem.cFont, cPreferencesItem.nBorderWidth, cPreferencesItem.stColor, cPreferencesItem.stColorBorder, cPreferencesItem.nWidthMax) { stMergingMethod = new MergingMethod() };
+			ushort nTextWidth = cTextSource.stArea.nWidth;
+			ushort nMaxWidth = _cPreferences.stArea.nWidth;
+            if (nMaxWidth < nTextWidth)
             {
                 List<string> aSplited = new List<string>();
                 int nk = 0;
@@ -263,34 +388,38 @@ namespace ingenie.plugins
                 }
                 foreach (string sStr in aSplited)
                 {
-                    cText = new BTL.Play.Text(sStr, cPreferencesItem.cFont, cPreferencesItem.nBorderWidth) { bCUDA = false, stColor = cPreferencesItem.stColor, stColorBorder = cPreferencesItem.stColorBorder };
-                    Text cTextPrev = null; ;
+                    cText = new BTL.Play.Text(sStr, cPreferencesItem.cFont, cPreferencesItem.nBorderWidth, cPreferencesItem.stColor, cPreferencesItem.stColorBorder, cPreferencesItem.nWidthMax) { stMergingMethod = new MergingMethod() };
+					Text cTextPrev = null; ;
                     int ni = 0;
                     nk = 1;
-                    if (nMaxWidth < cText.stArea.nWidth)
+                    if (nMaxWidth < nTextWidth)
                     {
                         while (ni + nk < sStr.Length)
                         {
-                            cText = new BTL.Play.Text(sStr.Substring(ni, nk), cPreferencesItem.cFont, cPreferencesItem.nBorderWidth) { bCUDA = false, stColor = cPreferencesItem.stColor, stColorBorder = cPreferencesItem.stColorBorder };
-                            while (nMaxWidth > cText.stArea.nWidth && (ni + nk < sStr.Length))
+                            cText = new BTL.Play.Text(sStr.Substring(ni, nk), cPreferencesItem.cFont, cPreferencesItem.nBorderWidth, cPreferencesItem.stColor, cPreferencesItem.stColorBorder, cPreferencesItem.nWidthMax) { stMergingMethod = new MergingMethod() };
+                            while (nMaxWidth > nTextWidth && (ni + nk < sStr.Length))
                             {
                                 nk++;
-                                cTextPrev = cText;
-                                cText = new BTL.Play.Text(sStr.Substring(ni, nk), cPreferencesItem.cFont, cPreferencesItem.nBorderWidth) { bCUDA = false, stColor = cPreferencesItem.stColor, stColorBorder = cPreferencesItem.stColorBorder };
+                                cText = new BTL.Play.Text(sStr.Substring(ni, nk), cPreferencesItem.cFont, cPreferencesItem.nBorderWidth, cPreferencesItem.stColor, cPreferencesItem.stColorBorder, cPreferencesItem.nWidthMax) { stMergingMethod = new MergingMethod() };
                             }
+							if (nk == 1) // т.е. оочень слишком длинное слово - циклом не исправить уже. можно ужать пытаться в будущем, если проблема будет.
+							{
+								(new Logger()).WriteWarning("попалось слишком длинное слово: " + sText);
+								break;
+							}
                             ni += nk - 1;
                             nk = 1;
                             if (ni + nk == sStr.Length)
-                                cTextPrev = cText;
+                                cTextPrev = cTextSource;
                             aEffects.Add(cTextPrev);
                         }
                     }
                     else
-                        aEffects.Add(cText);
+                        aEffects.Add(cTextSource);
                 }
             }
             else
-				aEffects.Add(cText);
+				aEffects.Add(cTextSource);
 
 			nIdent = 0;
 			for(int nIndx = 0; aEffects.Count > nIndx; nIndx++)

@@ -9,13 +9,40 @@ using helpers.extensions;
 
 namespace ingenie.initiator
 {
-	class Preferences : helpers.Preferences
+	public class Preferences : helpers.Preferences
 	{
 		public class Process
 		{
 			public string sName;
 			public string sOwner;
 			public string sArguments;
+			public bool bHideConsole;
+			public System.Diagnostics.ProcessPriorityClass enPriority;
+
+            public string sConfigMain;
+			public string sConfigBKP;
+			private string _sConfig;
+			public string sConfig
+			{
+				get
+				{
+					return _sConfig;
+				}
+				set
+				{
+					if (null != value)
+					{
+						if (null == sConfigMain)
+						{
+							sConfigMain = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, sName + ".exe.config");
+							sConfigBKP = sConfigMain + "_bkb";
+						}
+						_sConfig = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, value);
+					}
+					else
+						_sConfig = null;
+				}
+			}
 		}
 		public class Blender
 		{
@@ -59,22 +86,35 @@ namespace ingenie.initiator
             if (null == cXmlNode || _bInitialized)
 				return;
 			_sRestartFile = cXmlNode.AttributeValueGet("restart", false);
-			XmlNode[] aNodeChilds = cXmlNode.NodesGet("process", false);
-			if (null != aNodeChilds)
-			{
-				List<Process> aProcesses = new List<Process>();
-				for (int nIndx = 0; aNodeChilds.Length > nIndx; nIndx++)
-				{
-					aProcesses.Add(new Process()
-					{
-						sName = aNodeChilds[nIndx].AttributeValueGet("name"),
-						sOwner = aNodeChilds[nIndx].AttributeValueGet("owner"),
-						sArguments = aNodeChilds[nIndx].AttributeValueGet("arguments", false)
-					});
-				}
-				_aProcesses = aProcesses.ToArray();
-			}
-			XmlNode cXNBlender = cXmlNode.NodeGet("blender", false);
+            string sRestartDir = System.IO.Path.GetDirectoryName(_sRestartFile);
+            if (null != _sRestartFile)
+            {
+                if (System.IO.Directory.Exists(sRestartDir))
+                    (new Logger()).WriteNotice("restart dir exists [" + sRestartDir + "]");
+                else
+                    (new Logger()).WriteWarning("restart dir DOES NOT exists [" + sRestartDir + "]");
+            }
+            XmlNode[] aNodeChilds = cXmlNode.NodesGet("process", false);
+            if (null != aNodeChilds)
+            {
+                List<Process> aProcesses = new List<Process>();
+                for (int nIndx = 0; aNodeChilds.Length > nIndx; nIndx++)
+                {
+                    aProcesses.Add(new Process()
+                    {
+                        sName = aNodeChilds[nIndx].AttributeValueGet("name"),
+                        sOwner = aNodeChilds[nIndx].AttributeValueGet("owner"),
+                        sArguments = aNodeChilds[nIndx].AttributeValueGet("arguments", false),
+                        sConfig = aNodeChilds[nIndx].AttributeValueGet("config", false),
+                        bHideConsole = aNodeChilds[nIndx].AttributeOrDefaultGet<bool>("hide", false),
+                        enPriority = aNodeChilds[nIndx].AttributeOrDefaultGet<System.Diagnostics.ProcessPriorityClass>("priority", System.Diagnostics.ProcessPriorityClass.Normal),
+                    });
+                }
+                _aProcesses = aProcesses.ToArray();
+            }
+            else
+                _aProcesses = new Process[0];
+            XmlNode cXNBlender = cXmlNode.NodeGet("blender", false);
 			if (null != cXNBlender)
 			{
 				_cBlender = new Blender() { sPath = cXNBlender.AttributeValueGet("path"), sTasks = cXNBlender.AttributeValueGet("tasks"), nQueue = (cXNBlender.AttributeValueGet("queue", false) ?? "1").ToByte() };

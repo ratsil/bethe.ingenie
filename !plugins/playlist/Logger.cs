@@ -8,7 +8,8 @@ namespace ingenie.plugins
 	class Logger : helpers.Logger
 	{
 		public Logger()
-            : base("ingenie:plugins:playlist", "playlist")
-		{ }
+            : base(Preferences.eLevel, "ingenie:plugins:playlist", "playlist")
+		{
+        }
 	}
 }

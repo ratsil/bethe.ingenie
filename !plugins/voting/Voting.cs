@@ -1,5 +1,4 @@
-﻿//#define DEBUG1
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -21,616 +20,486 @@ namespace ingenie.plugins
 {
     public class Voting : MarshalByRefObject, IPlugin
     {
-        #region Members
         private Preferences _cPreferences;
         private EventDelegate Prepared;
         private EventDelegate Started;
         private EventDelegate Stopped;
-        private btl.Playlist _cPLPhotoLeft, _cPLPhotoRight, _cPLMatTop, _cPLMatMiddle, _cPLMatBottom;
-		private bool _bStopping = false;
-		private bool _bBottomStopping = false;
-		private bool _bBlenderDidNewVotes = false;
-		private bool _bBlenderIsPreparing = false;
-		private DateTime _dtPhotosLastStart;
-		private int _dtPhotosStartInterval;
-		private uint _nEmergencyDuration;
-		private ushort _nLoopTop, _nLoopMid, _nLoopImages;
-		private DateTime _dtStatusChanged;
-		private BTL.EffectStatus _eStatus;
-		private DateTime _dtTestDelay;
-		private uint _nVotesL, _nVotesR;
-		private bool _bFirstTime;
-		public BTL.EffectStatus eStatus
-		{
-			get
-			{
-				return _eStatus;
-			}
-			set
-			{
-				_eStatus = value;
-				_dtStatusChanged = DateTime.Now;
-			}
-		}
-		private string sFolderVotes
-		{
-			get
-			{
-				return Path.Combine(_cPreferences.sFolderBlender, "votes");
-			}
-		}
-		private ushort nLoopMid
-		{
-			get
-			{
-				if (!_bStopping)
-					return _nLoopMid;
-				else
-					return 10;
-			}
-		}
-		private ushort nLoopTop
-		{
-			get
-			{
-				if (!_bStopping)
-					return _nLoopTop;
-				else
-					return 10;
-			}
-		}
-		private ushort nLoopImages
-		{
-			get
-			{
-				if (!_bStopping)
-					return _nLoopImages;
-				else
-					return 10;
-			}
-		}
+        private BTL.EffectStatus _eStatus;
+        private DateTime _dtStatusChanged;
+        private object _oLock;
+        private bool _bPrepared;
+        private bool _bStopped;
+        private bool _bStarted;
+        private bool _bWorkerAborted;
+        private bool _bWorkerUpdaterAborted;
+        private System.Threading.Thread _cThreadWorker;
+        private System.Threading.Thread _cThreadWorkerUpdater;
+        private object _oLockUpdater;
 
-		private List<Effect> _aLoops;
-		private ManualResetEvent _cPrepare;
-		#endregion
+        private Roll _cRollImages;
+        private Roll _cRollTop;
+        private Roll _cRollBot;
+        private Roll _cRollMid;
+        private BTL.IEffect[] _aEffects;
+        private List<Bytes> _aBytesImages; // images in 1-23; loop 24; out 26-37;
+        private List<Bytes> _aBytesTop; // top in1 0-13; loo1 14; sw1 16-28; loo2 29; sw2 31-43; in2 46-59;
+        private List<Bytes> _aBytesBot; // bot in 0-26; loop 27;
+        private List<Bytes> _aBytesMid;  // mid in 0-10; loo1 11; sw 13-21; loo2 22
+        private List<Bytes> _aBytesMidUpdated;
+        private List<Bytes> _aBytesMidOld;
 
-		public Voting()
+        private int _nAddedFramesToEveryRoll;
+        private int _nImagesLoopEnd;
+        private int _nImagesNextStart;
+        private int _nTopLoopEnd;
+        private bool _bTopLoop1Now;
+        private DateTime _dtMidNextUpdate;
+
+        private enum Transition
         {
-			_bFirstTime = true;
-			_dtTestDelay = DateTime.Now;
-			_nVotesL = 1;
-			_nVotesR = 2;
-			_nLoopTop = 200;
-			_nLoopMid = 125;
-			_nLoopImages = 300;
-			_nEmergencyDuration = 50;
-			_aLoops = new List<Effect>();
-			_dtPhotosStartInterval = 60; // секунд
-			eStatus = BTL.EffectStatus.Idle;
+            Initial,
+            Normal,
+            Final,
+        }
+        public BTL.EffectStatus eStatus
+        {
+            get
+            {
+                return _eStatus;
+            }
+            set
+            {
+                _dtStatusChanged = DateTime.Now;
+                _eStatus = value;
+            }
+        }
+        public bool bMidUpdated
+        {
+            get
+            {
+                lock (_oLockUpdater)
+                {
+                    return _aBytesMidUpdated != null;
+                }
+            }
+        }
+
+        public Voting()
+        {
+            eStatus = BTL.EffectStatus.Idle;
+            _nImagesNextStart = int.MaxValue;
+            _oLockUpdater = new object();
+            _dtMidNextUpdate = DateTime.MaxValue;
         }
         public void Create(string sWorkFolder, string sData)
         {
-			_cPreferences = new Preferences(sWorkFolder, sData);
+            (new Logger()).WriteDebug("create");
+            _oLock = new object();
+            _bStopped = false;
+            _bWorkerAborted = false;
+            _cPreferences = new Preferences(sData);
+            _cRollImages = _cPreferences.cRollImages;
+            _cRollTop = _cPreferences.cRollTop;
+            _cRollBot = _cPreferences.cRollBot;
+            _cRollMid = _cPreferences.cRollMid;
+            _aBytesImages = new List<Bytes>();
+            _aBytesTop = new List<Bytes>();
+            _aBytesBot = new List<Bytes>();
+            _aBytesMid = new List<Bytes>();
         }
-		public void Prepare()
-        {
-			eStatus = BTL.EffectStatus.Preparing;
-			_cPrepare = new ManualResetEvent(false);
-            try
-            {
-                DisCom.Init();
-
-				if (!Directory.Exists(Path.Combine(_cPreferences.sFolderMat, "voting_bot_loop")))
-				{
-					Render(_cPreferences.cMat.OuterXml, (IPlugin) => _cPrepare.Set());
-					_cPrepare.WaitOne();
-					_cPrepare.Reset();
-				}
-				PrepareVotes();
-				_cPrepare.WaitOne();
-				_cPrepare.Reset();
-				PreparePlaylists();
-				if (null != Prepared)
-					Plugin.EventSend(Prepared, this);
-			}
-            catch (Exception ex)
-            {
-				eStatus = BTL.EffectStatus.Error;
-                (new Logger()).WriteError(ex);
-			}
-        }
-		public void PrepareVotes()
+        public void Prepare()
         {
             try
             {
-				XmlNode cXNData = ingenie.plugins.Data.Get("polls.zed", 0, _cPreferences.cPoll.sName);
-				Preferences.Poll.Candidate[] aCandidates = _cPreferences.cPoll.aCandidates;
-				uint[] aVotes = cXNData.NodesGet("item").
-					Select(o => new Preferences.Poll.Candidate() { sName = o.AttributeValueGet("name").ToLower(), nVotesQty = o.AttributeGet<uint>("votes") }).
-					Where(o => 0 < aCandidates.Count(o1 => o1.sName == o.sName)).
-					OrderBy(o => o.sName == aCandidates[0].sName ? 0 : 1). 
-					Select(o => o.nVotesQty).
-					ToArray();
+                //PixelsMap.DisComInit();
+                lock (_oLock)
+                {
+                    if (_bPrepared)
+                    {
+                        (new Logger()).WriteWarning("Voting has already prepared!");
+                        return;
+                    }
+                    _bPrepared = true;
+                }
+                (new Logger()).WriteDebug("prepare:in");
 
-				if (2 == aVotes.Length)
-				{
-#if DEBUG
-					//DNF
-					if (DateTime.Now.Subtract(_dtTestDelay).TotalSeconds > 50)
-					{
-						_nVotesL += 97;
-						_nVotesR = (uint)((_nVotesR + 1) * 1.01);
-						aVotes[0] = _nVotesL;
-						aVotes[1] = _nVotesR;
-					}
-					//DNF
-#endif
-					if (_bFirstTime)
-					{
-						(new Logger()).WriteDebug("initial votes are: [" + aCandidates[0].sName + "=" + aVotes[0] + "][" + aCandidates[1].sName + "=" + aVotes[1] + "]");
-						_bFirstTime = false;
-						aCandidates[0].nVotesQty = aVotes[0];
-						aCandidates[1].nVotesQty = aVotes[1];
-						_cPreferences.cPoll.aCandidates[0].nVotesQty = aVotes[0];
-						_cPreferences.cPoll.aCandidates[1].nVotesQty = aVotes[1];
-					}
+                ulong nSimulID = (ulong)_cRollImages.nID;
+                _cRollImages.SimultaneousSet(nSimulID, 4);
+                _cRollTop.SimultaneousSet(nSimulID, 4);
+                _cRollBot.SimultaneousSet(nSimulID, 4);
+                _cRollMid.SimultaneousSet(nSimulID, 4);
 
+                _cRollImages.Prepare(38);
+                _aBytesImages = _cRollImages.PreRenderedFramesGet();
+                ClearRoll(_cRollImages);
+                _cRollTop.Prepare(61);
+                _aBytesTop = _cRollTop.PreRenderedFramesGet();
+                ClearRoll(_cRollTop);
+                _cRollBot.Prepare(29);
+                _aBytesBot = _cRollBot.PreRenderedFramesGet();
+                ClearRoll(_cRollBot);
+                _cRollMid.Prepare(23);
+                _aBytesMid = _cRollMid.PreRenderedFramesGet();
+                ClearRoll(_cRollMid);
 
-					if (BTL.EffectStatus.Preparing == eStatus || aVotes[0] != aCandidates[0].nVotesQty || aVotes[1] != aCandidates[1].nVotesQty)
-					{
-						if (BTL.EffectStatus.Preparing != eStatus)
-							(new Logger()).WriteDebug("votes have changed to: [L=" + aVotes[0] + "][R=" + aVotes[1] + "]");
-						// votes_ - это для более аккуратного копирования вместо штатного см. MoveRenderedVotesToNormalPlace()
-						Render(_cPreferences.cVotes.OuterXml.Replace("votes\"><python", "votes_\"><python").   
-							Replace("{%_TEXT_VOTES_LEFT_%}", _cPreferences.cPoll.aCandidates[0].nVotesQty.ToStr()).
-							Replace("{%_TEXT_VOTES_RIGHT_%}", _cPreferences.cPoll.aCandidates[1].nVotesQty.ToStr()).
-							Replace("{%_TEXT_NEW_VOTES_LEFT_%}", aVotes[0].ToStr()).
-							Replace("{%_TEXT_NEW_VOTES_RIGHT_%}", aVotes[1].ToStr())
-							, VotesPrepared);
-						_cPreferences.cPoll.aCandidates[0].nVotesQty = aVotes[0];
-						_cPreferences.cPoll.aCandidates[1].nVotesQty = aVotes[1];
-					}
-					else
-						_bBlenderIsPreparing = false;
-				}
-				else
-				{
-					(new Logger()).WriteError("received wrong votes");
-					_bBlenderIsPreparing = false;
-				}
-			}
-            catch (Exception ex)
-            {	
-				_bBlenderIsPreparing = false;
-				eStatus = BTL.EffectStatus.Error;
-				(new Logger()).WriteError(ex);
+                AddInitFrames(50);
+
+                _cThreadWorker = new System.Threading.Thread(WorkerUpdater);
+                _cThreadWorker.IsBackground = true;
+                _cThreadWorker.Priority = System.Threading.ThreadPriority.Normal;
+                _cThreadWorker.Start();
+
+                _cThreadWorker = new System.Threading.Thread(Worker);
+                _cThreadWorker.IsBackground = true;
+                _cThreadWorker.Priority = System.Threading.ThreadPriority.Normal;
+                _cThreadWorker.Start();
+
+                eStatus = BTL.EffectStatus.Preparing;
+                if (null != Prepared)
+                    Plugin.EventSend(Prepared, this);
+                (new Logger()).WriteDebug("prepare:out");
             }
-		}
-		public void PreparePlaylists()
-        {
-			_bBlenderDidNewVotes = false;
-			_bBlenderIsPreparing = false;
-
-			_cPLMatTop = new btl.Playlist()
-			{
-				bCUDA = _cPreferences.bCUDA,
-				nLayer = _cPreferences.nLayer,
-				nDelay = 0,
-				cDock = new Dock(_cPreferences.nLeft, (short)(_cPreferences.nTop + 67)),
-				bStopOnEmpty = true,
-				bOpacity = false
-			};
-			_cPLMatMiddle = new btl.Playlist()
-			{
-				bCUDA = _cPreferences.bCUDA,
-				nLayer = _cPreferences.nLayer,
-				nDelay = 34,
-				cDock = new Dock((short)(_cPreferences.nLeft + 186), (short)(_cPreferences.nTop + 87)),
-				bStopOnEmpty = true,
-				bOpacity = false
-			};
-			_cPLMatBottom = new btl.Playlist()
-			{
-				bCUDA = _cPreferences.bCUDA,
-				nLayer = _cPreferences.nLayer,
-				nDelay = 22,
-				cDock = new Dock(_cPreferences.nLeft, (short)(_cPreferences.nTop + 87)),
-				bStopOnEmpty = true,
-				bOpacity = false
-			};
-			_cPLPhotoLeft = new btl.Playlist()   
-			{   
-				bCUDA = _cPreferences.bCUDA,
-				nLayer = _cPreferences.nLayer, 
-				nDelay = 50,
-				cDock = new Dock(_cPreferences.nLeft, _cPreferences.nTop),
-				bStopOnEmpty = false,
-				bOpacity = false
-			};
-			_cPLPhotoRight = new btl.Playlist()
-			{   
-				bCUDA = _cPreferences.bCUDA,
-				nLayer = _cPreferences.nLayer,
-				nDelay = 50,
-				cDock = new Dock((short)(_cPreferences.nLeft + 253), _cPreferences.nTop),
-				bStopOnEmpty = false,
-				bOpacity = false
-			};
-			Animation cLoop;
-
-			_cPLMatTop.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_top_in")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1 }, 0);
-			cLoop = new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_top_loop1")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = _nLoopTop, oTag = "voting_top_loop1" };
-			lock (_aLoops)
-				_aLoops.Add(cLoop);
-			_cPLMatTop.AnimationAdd(cLoop, 0);
-			_cPLMatTop.EffectStarted += new ContainerVideoAudio.EventDelegate(_cPLMatTop_EffectStarted);
-			_cPLMatTop.EffectStopped += new ContainerVideoAudio.EventDelegate(RemoveOnStopped);
-
-			_cPLMatBottom.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_bot_in")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1 }, 0);
-			_cPLMatBottom.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_bot_loop")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = 0 }, 0);
-
-			_cPLMatMiddle.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderVotes, "voting_mid_in")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1 }, 0);
-			cLoop = new Animation(Path.Combine(_cPreferences.sFolderVotes, "voting_mid_loop1")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = _nLoopMid, oTag = "voting_mid_loop1" };
-			_cPLMatMiddle.AnimationAdd(cLoop, 0);
-			lock (_aLoops)
-				_aLoops.Add(cLoop);
-			_cPLMatMiddle.EffectStarted += new ContainerVideoAudio.EventDelegate(_cPLMatMiddle_EffectStarted);
-			_cPLMatMiddle.EffectStopped += new ContainerVideoAudio.EventDelegate(RemoveOnStopped);
-
-			_cPLMatTop.Stopped += new Effect.EventDelegate(PL_Stopped);
-			_cPLMatBottom.Stopped += new Effect.EventDelegate(PL_Stopped);
-			_cPLMatMiddle.Stopped += new Effect.EventDelegate(PL_Stopped);
-			_cPLPhotoLeft.Stopped += new Effect.EventDelegate(PL_Stopped);
-			_cPLPhotoRight.Stopped += new Effect.EventDelegate(PL_Stopped);
-			_cPLPhotoLeft.EffectStopped += new ContainerVideoAudio.EventDelegate(RemoveOnStopped);
-			_cPLPhotoRight.EffectStopped += new ContainerVideoAudio.EventDelegate(RemoveOnStopped);
-
-			_cPLMatTop.Prepare();
-			_cPLMatBottom.Prepare();  
-			_cPLMatMiddle.Prepare();
-
-			_cPLPhotoLeft.Prepare();
-			_cPLPhotoRight.Prepare();
-			_cPLPhotoLeft.Start();
-			_cPLPhotoRight.Start();
-
-            (new Logger()).WriteDebug3("ok");
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+                eStatus = BTL.EffectStatus.Error;
+            }
         }
+        private void ClearRoll(Roll cRoll)
+        {
+            cRoll.ClearPreRenderedQueue();
+            _aEffects = cRoll.EffectsGet();
+            cRoll.RemoveAllEffects();
+            foreach (BTL.IEffect iEff in _aEffects)
+                if (iEff.eStatus == BTL.EffectStatus.Preparing || iEff.eStatus == BTL.EffectStatus.Running)
+                    iEff.Stop();
+        }
+        private void AddInitFrames(int nQty)
+        {
+            int nI, nInitDur;
+            nInitDur = 23;
+            for (nI = 1; nI <= nInitDur; nI++)  
+                _cRollImages.PreRenderedFrameAdd(_aBytesImages[nI]);
+            for (nI = 1; nI <= nQty - nInitDur - (int)_cRollImages.nDelay; nI++)
+                _cRollImages.PreRenderedFrameAdd(_aBytesImages[24]);
+            _nImagesLoopEnd = nInitDur + (int)_cRollImages.nDelay + _cPreferences.nImagesLoopDur;
+            _nImagesNextStart = 0;
 
-		void RemoveOnStopped(Effect cSender, Effect cEffect)
-		{
-			if (_bStopping)
-			{
-				if (cEffect.oTag == "voting_imagesL_out")
-					_cPLPhotoLeft.Stop();
-				if (cEffect.oTag == "voting_imagesR_out")
-					_cPLPhotoRight.Stop();
-			}
+            nInitDur = 14;
+            for (nI = 0; nI <= nInitDur-1; nI++)  
+                _cRollTop.PreRenderedFrameAdd(_aBytesTop[nI]);
+            for (nI = 1; nI <= nQty - nInitDur - (int)_cRollTop.nDelay; nI++)
+                _cRollTop.PreRenderedFrameAdd(_aBytesTop[14]);
+            _nTopLoopEnd = nInitDur + (int)_cRollTop.nDelay + _cPreferences.nTopLoopDur;
+            _bTopLoop1Now = true;
 
-			lock (_aLoops)
-			{
-				if (_aLoops.Contains(cEffect))
-					_aLoops.Remove(cEffect);
-			}
-		}
-		void PL_Stopped(Effect cSender)
-		{
-			if (_cPLMatTop.eStatus == BTL.EffectStatus.Stopped
-					&& _cPLMatBottom.eStatus == BTL.EffectStatus.Stopped
-					&& _cPLMatMiddle.eStatus == BTL.EffectStatus.Stopped
-					&& _cPLPhotoLeft.eStatus == BTL.EffectStatus.Stopped
-					&& _cPLPhotoRight.eStatus == BTL.EffectStatus.Stopped)
-			{
-				eStatus = BTL.EffectStatus.Stopped;
-			}
-		}
-		void VotesPrepared(IPlugin iSender)
-		{
-			MoveRenderedVotesToNormalPlace();  // from votes_  to votes
-			if (_bBlenderIsPreparing)
-			{
-				_bBlenderDidNewVotes = true;
-				_bBlenderIsPreparing = false;
-			}
-			_cPrepare.Set();
-		}
-		void Render(string sData, EventDelegate fPrepared)
-		{
-			Blender cBlender = new Blender();
-			cBlender.Create(_cPreferences.sFolderBlender, sData);
-			((IPlugin)cBlender).Stopped += fPrepared;
-			cBlender.Start();
-		}
-		void _cPLMatMiddle_EffectStarted(Effect cSender, Effect cEffect)
-		{
-			Animation cLoop = null;
+            for (nI = 0; nI <= 26; nI++)  
+                _cRollBot.PreRenderedFrameAdd(_aBytesBot[nI]);
+            for (nI = 1; nI <= nQty - 27 - (int)_cRollBot.nDelay; nI++)
+                _cRollBot.PreRenderedFrameAdd(_aBytesBot[27]);
 
-			if (cEffect is Animation && ((Animation)cEffect).oTag == "new_votes_loop")  // временные новые голоса
-			{
-				CopyTMPToNormalPlace();
-				lock (_aLoops)
-				{
-					cLoop = new Animation(Path.Combine(_cPreferences.sFolderVotes, "voting_mid_loop1")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = nLoopMid, oTag = "voting_mid_loop1" };
-					_cPLMatMiddle.AnimationAdd(cLoop, 0);
-					_aLoops.Add(cLoop);
-				}
-				return;
-			}
+            for (nI = 0; nI <= 10; nI++)  
+                _cRollMid.PreRenderedFrameAdd(_aBytesMid[nI]);
+            for (nI = 1; nI <= nQty - 11 - (int)_cRollMid.nDelay; nI++)
+                _cRollMid.PreRenderedFrameAdd(_aBytesMid[11]);
 
-			if (cEffect is Animation && ((Animation)cEffect).oTag == "voting_mid_loop1")  // старые голоса
-			{
-				if (_bStopping)
-				{
-					_cPLMatBottom.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_bot_loop")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = (ushort)(nLoopMid - 7) }, 0); // на 7 кадров раньше должен уходить чем мид
-					_cPLMatBottom.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_bot_out")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1 }, 0);
-					_cPLMatBottom.nDuration = _cPLMatBottom.nFrameCurrent + _nEmergencyDuration;
-					_cPLMatBottom.Skip(true, 0);
-					_bBottomStopping = true;
-					_cPLMatMiddle.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderVotes, "voting_mid_loop1")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = 10 }, 0);
-					_cPLMatMiddle.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderVotes, "voting_mid_out")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1 }, 0);
-					_cPLMatMiddle.nDuration = _cPLMatMiddle.nFrameCurrent + _nEmergencyDuration;
-					_cPLMatMiddle.Skip(false, 0);
-					return;
-				}
+            _nAddedFramesToEveryRoll = nQty;
+        }
+        private void WorkerUpdater(object cState)
+        {
+            int nErrIndx = int.MaxValue;
+            Roll cRollMid;
+            List<Bytes> aBytesMid;
+            while (!_bStopped)
+                try
+                {
+                    if (null == _aBytesMidUpdated && DateTime.Now > _dtMidNextUpdate)
+                    {
+                        if (_cPreferences.PollUpdate())
+                        {
+                            cRollMid = _cPreferences.cPoll.NewRollMidGet();
+                            cRollMid.Prepare(23);
+                            aBytesMid = cRollMid.PreRenderedFramesGet();
+                            cRollMid.ClearPreRenderedQueue();
+                            cRollMid.PreRenderedFramesRegistrationsMoveTo(_cRollMid, aBytesMid);
+                            lock (_oLockUpdater)
+                            {
+                                _aBytesMidUpdated = aBytesMid;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (nErrIndx++ > 40)
+                    {
+                        (new Logger()).WriteError(ex);
+                        nErrIndx = 0;
+                    }
+                }
+                finally
+                {
+                    Thread.Sleep(80);
+                }
+            _bWorkerUpdaterAborted = true;
+            (new Logger()).WriteDebug("workerUpdater ended off");
+        }
+        private void Worker(object cState)
+        {
+            try
+            {
+                uint nLen;
+                int nI, nInitDur, nDelta;
+                while (true)
+                {
+                    if (_bStopped)
+                    {
+                        if (!_bStarted)
+                            break;
+                        if (AreAllRollsStopped())
+                            break;
 
-				if (_bBlenderDidNewVotes)
-				{
-					_bBlenderDidNewVotes = false;
-					_cPLMatMiddle.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderVotes, "!old_percents__new_votes")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1 }, 0);
-					lock (_aLoops)
-					{
-						cLoop = new Animation(Path.Combine(_cPreferences.sFolderVotes, "!new_votes_loop")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = nLoopMid, oTag = "new_votes_loop" };
-						_cPLMatMiddle.AnimationAdd(cLoop, 0);
-						_aLoops.Add(cLoop);
-					}
-					return;
-				}
-				lock (_aLoops)
-				{
-					cLoop = new Animation(Path.Combine(_cPreferences.sFolderVotes, "voting_mid_loop1")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = nLoopMid, oTag = "voting_mid_loop1" };
-					_cPLMatMiddle.AnimationAdd(cLoop, 0);
-					_aLoops.Add(cLoop);
-				}
-			}
+                        nDelta = -4;  // это если без images
+                        if (_nImagesLoopEnd >= _nAddedFramesToEveryRoll)
+                        {
+                            nDelta = (int)_cRollImages.nPrerenderQueueCount - (int)_cRollTop.nPrerenderQueueCount;
+                            while (nDelta < 0)
+                            {
+                                _cRollImages.PreRenderedFrameAdd(_aBytesImages[24]);
+                                nDelta++;
+                            }
+                            for (nI = 26; nI <= 37; nI++)   //12   delay=20
+                                _cRollImages.PreRenderedFrameAdd(_aBytesImages[nI]);
+                        }
+                        for (nI = 1; nI <= 5 + nDelta; nI++)
+                            _cRollTop.PreRenderedFrameAdd(_bTopLoop1Now ? _aBytesTop[14] : _aBytesTop[29]);
+                        for (nI = 13; nI >= 0; nI--)    //14  delay=13
+                            _cRollTop.PreRenderedFrameAdd(_aBytesTop[nI + (_bTopLoop1Now ? 0 : 46)]);
 
-			if (!_bStopping && !_bBlenderDidNewVotes && !_bBlenderIsPreparing)
-			{
-				_bBlenderIsPreparing = true;
-				PrepareVotes(); 
-			}
-		}
-		
-		void _cPLMatTop_EffectStarted(Effect cSender, Effect cEffect)
-		{
-			Animation cLoop = null;
+                        for (nI = 1; nI <= 4 + nDelta; nI++)
+                            _cRollBot.PreRenderedFrameAdd(_aBytesBot[27]);
+                        for (nI = 26; nI >= 0; nI--)   // 27  delay=0
+                            _cRollBot.PreRenderedFrameAdd(_aBytesBot[nI]);
 
-			if (!_bStopping && cEffect is Animation && ((Animation)cEffect).oTag == "voting_top_loop1" && DateTime.Now.Subtract(_dtPhotosLastStart).TotalSeconds > _dtPhotosStartInterval)
-			{
-				StartPhotos();
-			}
+                        for (nI = 1; nI <= 17 + nDelta; nI++)
+                            _cRollMid.PreRenderedFrameAdd(_aBytesMid[11]);
+                        for (nI = 10; nI >= 0; nI--)   // 11  delay=4
+                            _cRollMid.PreRenderedFrameAdd(_aBytesMid[nI]);
 
-			if (cEffect is Animation && ((Animation)cEffect).oTag == "voting_top_loop1")
-			{
-				if (_bStopping)
-				{
-					if (_bBottomStopping)
-					{
-						_cPLMatTop.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_top_loop1")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = nLoopTop }, 0);
-						_cPLMatTop.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_top_out")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1 }, 0);
-						_cPLMatTop.nDuration = _cPLMatTop.nFrameCurrent + _nEmergencyDuration;
-						_cPLMatTop.Skip(true, 0);
-					}
-					else
-						_cPLMatTop.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_top_loop1")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = 25, oTag = "voting_top_loop1" }, 0);
-					return;
-				}
-				_cPLMatTop.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_top_switch1")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1, oTag = "voting_top_switch1" }, 0);
-				lock (_aLoops)
-				{
-					cLoop = new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_top_loop2")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = nLoopTop, oTag = "voting_top_loop2" };
-					_cPLMatTop.AnimationAdd(cLoop, 0);
-					_aLoops.Add(cLoop);
-				}
-				_cPLMatTop.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_top_switch2")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1 }, 0);
-				lock (_aLoops)
-				{
-					cLoop = new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_top_loop1")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = nLoopTop, oTag = "voting_top_loop1" };
-					_cPLMatTop.AnimationAdd(cLoop, 0);
-					_aLoops.Add(cLoop);
-				}
-			}
-		}
+                        while (!AreAllRollsStopped())
+                        {
+                            System.Threading.Thread.Sleep(80);
+                        }
+                        break;
+                    }
 
+                    if (_cRollTop.nPrerenderQueueCount >= _cPreferences.nRollPrerenderQueueMax && (_nImagesLoopEnd < _nAddedFramesToEveryRoll || _cRollImages.nPrerenderQueueCount >= _cPreferences.nRollPrerenderQueueMax))
+                    {
+                        System.Threading.Thread.Sleep(80);
+                    }
+                    else
+                    {
+                        nLen = _cRollTop.nPrerenderQueueCount;
+                        if (nLen < _cPreferences.nRollPrerenderQueueMax / 2)
+                            (new Logger()).WriteDebug("roll queue is less than a half = " + nLen);
+
+                        if (_nImagesLoopEnd < _nAddedFramesToEveryRoll && _nImagesLoopEnd > _nImagesNextStart)
+                        {
+                            for (nI = 26; nI <= 37; nI++)
+                            {
+                                _cRollImages.PreRenderedFrameAdd(_aBytesImages[nI]);
+                                _cRollTop.PreRenderedFrameAdd(_bTopLoop1Now ? _aBytesTop[14] : _aBytesTop[29]);
+                                _cRollBot.PreRenderedFrameAdd(_aBytesBot[27]);
+                                _cRollMid.PreRenderedFrameAdd(_aBytesMid[11]);
+                                _nAddedFramesToEveryRoll++;
+                            }
+                            _nImagesNextStart = _nAddedFramesToEveryRoll + _cPreferences.nImagesInterval;
+                        }
+                        else if (_nImagesNextStart < _nAddedFramesToEveryRoll && _nImagesNextStart > _nImagesLoopEnd)
+                        {
+                            if (_cRollImages.eStatus != BTL.EffectStatus.Stopped)
+                                _cRollImages.Stop();
+                            _cRollImages.Idle();
+                            _cRollImages.SimultaneousReset();
+                            _cRollImages.nDelay = 0;
+                            _cRollImages.Prepare();
+
+                            nInitDur = 23;
+                            for (nI = 1; nI <= nInitDur; nI++)
+                                _cRollImages.PreRenderedFrameAdd(_aBytesImages[nI]);  // этот ролл только что стартонул, поэтому он нагоняет остальных
+                            _nImagesLoopEnd = _nAddedFramesToEveryRoll + nInitDur + _cPreferences.nImagesLoopDur;
+                            _cRollImages.Start();
+                        }
+                        else if (_nTopLoopEnd < _nAddedFramesToEveryRoll)
+                        {
+                            bool bImagesRun = _nImagesLoopEnd >= _nAddedFramesToEveryRoll;
+                            for (nI = 16; nI <= 28; nI++) //12
+                            {
+                                if (bImagesRun)
+                                    _cRollImages.PreRenderedFrameAdd(_aBytesImages[24]);
+                                _cRollTop.PreRenderedFrameAdd(_aBytesTop[nI + (_bTopLoop1Now ? 0 : 15)]);
+                                _cRollBot.PreRenderedFrameAdd(_aBytesBot[27]);
+                                _cRollMid.PreRenderedFrameAdd(_aBytesMid[11]);
+                                _nAddedFramesToEveryRoll++;
+                            }
+                            _nTopLoopEnd = _nAddedFramesToEveryRoll + _cPreferences.nTopLoopDur;
+                            _bTopLoop1Now = !_bTopLoop1Now;
+                        }
+                        else if (bMidUpdated)
+                        {
+                            if (_aBytesMidOld != null)
+                            {
+                                _cRollMid.ForgetGotFrames(_aBytesMidOld);
+                            }
+                            lock (_oLockUpdater)
+                            {
+                                _dtMidNextUpdate = DateTime.Now.Add(_cPreferences.tsUpdateInterval);
+                                _aBytesMidOld = _aBytesMid;
+                                _aBytesMid = _aBytesMidUpdated;
+                                _aBytesMidUpdated = null;
+                            }
+                            bool bImagesRun = _nImagesLoopEnd >= _nAddedFramesToEveryRoll;
+                            for (nI = 13; nI <= 21; nI++)
+                            {
+                                if (bImagesRun)
+                                    _cRollImages.PreRenderedFrameAdd(_aBytesImages[24]);
+                                _cRollTop.PreRenderedFrameAdd(_bTopLoop1Now ? _aBytesTop[14] : _aBytesTop[29]);
+                                _cRollBot.PreRenderedFrameAdd(_aBytesBot[27]);
+                                _cRollMid.PreRenderedFrameAdd(_aBytesMid[nI]);
+                                _nAddedFramesToEveryRoll++;
+                            }
+                        }
+                        else
+                        {
+                            if (_nImagesLoopEnd >= _nAddedFramesToEveryRoll)
+                                _cRollImages.PreRenderedFrameAdd(_aBytesImages[24]);
+                            _cRollTop.PreRenderedFrameAdd(_bTopLoop1Now ? _aBytesTop[14] : _aBytesTop[29]);
+                            _cRollBot.PreRenderedFrameAdd(_aBytesBot[27]);
+                            _cRollMid.PreRenderedFrameAdd(_aBytesMid[11]);
+                            _nAddedFramesToEveryRoll++;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
+            finally
+            {
+                _bWorkerAborted = true;
+                (new Logger()).WriteDebug("worker ended off");
+            }
+        }
         public void Start()
         {
-
-			eStatus = BTL.EffectStatus.Running;
-			_cPLMatTop.Start();  
-			_cPLMatBottom.Start();
-			_cPLMatMiddle.Start();
-
-			_cPreferences.PollUpdate();
-
-			//DNF
-			//System.Threading.Thread _cThreadFramesGettingWorker;
-			//_cThreadFramesGettingWorker = new System.Threading.Thread(FramesGettingWorker);
-			//_cThreadFramesGettingWorker.IsBackground = true;
-			//_cThreadFramesGettingWorker.Priority = System.Threading.ThreadPriority.Normal;
-			//_cThreadFramesGettingWorker.Start();
-
-
-
-
+            lock (_oLock)
+            {
+                if (_bStopped || _bStarted)
+                    return;
+                _bStarted = true;
+            }
+            (new Logger()).WriteDebug("start:in");
+            _cRollImages.Start();
+            _cRollTop.Start();
+            _cRollBot.Start();
+            _cRollMid.Start();
+            _dtMidNextUpdate = DateTime.Now.Add(_cPreferences.tsUpdateInterval);
+            eStatus = BTL.EffectStatus.Running;
             if (null != Started)
                 Plugin.EventSend(Started, this);
+            (new Logger()).WriteDebug("start:out");
         }
+        private bool AreAllRollsStopped()
+        {
+            return _cRollImages.eStatus == BTL.EffectStatus.Stopped &&
+                    _cRollTop.eStatus == BTL.EffectStatus.Stopped &&
+                    _cRollBot.eStatus == BTL.EffectStatus.Stopped &&
+                    _cRollMid.eStatus == BTL.EffectStatus.Stopped;
+        }
+        private void AddToAllRollsDurations(ulong nAdd)
+        {
+            _cRollImages.nDuration = _cRollImages.nFrameCurrent + nAdd;
+            _cRollTop.nDuration = _cRollTop.nFrameCurrent + nAdd;
+            _cRollBot.nDuration = _cRollBot.nFrameCurrent + nAdd;
+            _cRollMid.nDuration = _cRollMid.nFrameCurrent + nAdd;
+        }
+        private void StopAndDisposeRolls()
+        {
+            if (_cRollImages.eStatus == BTL.EffectStatus.Running || _cRollImages.eStatus == BTL.EffectStatus.Preparing)
+                _cRollImages.Stop();
+            _cRollImages.Dispose();
+            if (_cRollTop.eStatus == BTL.EffectStatus.Running || _cRollTop.eStatus == BTL.EffectStatus.Preparing)
+                _cRollTop.Stop();
+            _cRollTop.Dispose();
+            if (_cRollBot.eStatus == BTL.EffectStatus.Running || _cRollBot.eStatus == BTL.EffectStatus.Preparing)
+                _cRollBot.Stop();
+            _cRollBot.Dispose();
+            if (_cRollMid.eStatus == BTL.EffectStatus.Running || _cRollMid.eStatus == BTL.EffectStatus.Preparing)
+                _cRollMid.Stop();
+            _cRollMid.Dispose();
+        }
+        public void Stop()
+        {
+            lock (_oLock)
+            {
+                if (_bStopped)
+                    return;
+                _bStopped = true;
+            }
+            try
+            {
+                (new Logger()).WriteDebug("stop:in");
+                if (_bStarted)
+                {
+                    (new Logger()).WriteDebug("waiting for rolls stopping");
+                    AddToAllRollsDurations(75);
+                    DateTime dtKill = DateTime.Now.AddSeconds(10);
+                    while (!AreAllRollsStopped())
+                    {
+                        System.Threading.Thread.Sleep(40);
+                        if (DateTime.Now > dtKill)
+                        {
+                            (new Logger()).WriteDebug("stop:mid: break waiting");
+                            break;
+                        }
+                    }
+                    (new Logger()).WriteDebug("stop:mid: rolls stopped or must be");
+                }
+                else
+                    System.Threading.Thread.Sleep(200);
 
-		private void FramesGettingWorker(object cState)
-		{
-			System.Threading.Thread.Sleep(4000);
-			if (_bBlenderDidNewVotes)
-				_bBlenderDidNewVotes = false;
-			else
-				PrepareVotes();
-		}
+                StopAndDisposeRolls();
 
-
-			// асинхронно выполнить!
-
-			//изготовить 3 пары переходов и лупов - со старых процентов на новые голоса, с новых голосов на новые проценты и с новых % на новые голоса
-			// надо передать блендеру типа так:
-			//sPath = "d:/tmp/test/"
-			//sTextVotesLeft = 23242
-			//sTextVotesRight = 1221
-			//sTextNewVotesLeft = 24550
-			//sTextNewVotesRight = 2113
-
-			//он сделает папки такие:
-			// !old_percents__new_Votes
-			// !new_votes_loop
-			// !new_percents__new_Votes
-			// !new_votes__new_percents
-			// !new_percents_loop
-
-		private void MoveRenderedVotesToNormalPlace()
-		{
-			string[] aFrom = Directory.GetDirectories(_cPreferences.sFolderVotes.Replace("votes", "votes_"));
-			string[] aPNGs;
-			string sTo;
-			foreach (string sFrom in aFrom)
-			{
-				sTo=sFrom.Replace("\\votes_\\", "\\votes\\");
-				if ((aPNGs = Directory.GetFiles(sFrom, "*.png")).Length > 0)
-					CopyDirectory(sFrom, sTo);
-				else if (!Directory.Exists(sTo))
-					Directory.CreateDirectory(sTo);
-			}
-		}
-		private void CopyTMPToNormalPlace()
-		{
-			// копируем  новые секвенции на обычные места пока мы стоим в new_votes_loop
-			// т.е.
-
-			// !old_percents__new_votes		не надо
-			// !new_votes_loop				---->  voting_mid_loop1
-			// !new_percents__new_votes		---->  voting_mid_switch2
-			// !new_votes__new_percents		---->  voting_mid_switch1
-			// !new_percents_loop			---->  voting_mid_loop2
-
-			GC.Collect(); // иногда файлы оказываются занятыми процессом, хотя они в эфире уже были
-			CopyDirectory(Path.Combine(_cPreferences.sFolderVotes, "!new_votes_loop"), Path.Combine(_cPreferences.sFolderVotes, "voting_mid_loop1"));
-			//CopyDirectory(Path.Combine(_cPreferences.sFolderVotes, "!new_percents__new_votes"), Path.Combine(_cPreferences.sFolderVotes, "voting_mid_switch2"));
-			//CopyDirectory(Path.Combine(_cPreferences.sFolderVotes, "!new_votes__new_percents"), Path.Combine(_cPreferences.sFolderVotes, "voting_mid_switch1"));
-			//CopyDirectory(Path.Combine(_cPreferences.sFolderVotes, "!new_percents_loop"), Path.Combine(_cPreferences.sFolderVotes, "voting_mid_loop2"));
-		}
-		private void CopyDirectory(string sPathFrom, string sPathTo)
-		{
-			if (!Directory.Exists(sPathTo))
-				Directory.CreateDirectory(sPathTo);
-			string[] aNamesFrom = Directory.GetFiles(sPathFrom).Select(o => Path.GetFileName(o)).ToArray();
-			string[] aNamesTo = Directory.GetFiles(sPathTo).Select(o => Path.GetFileName(o)).ToArray();
-			try
-			{
-				foreach (string sFile in aNamesTo)
-					if (!aNamesFrom.Contains(sFile))
-						File.Delete(Path.Combine(sPathTo, sFile));
-
-				foreach (string sFile in aNamesFrom)
-				{
-					File.Copy(Path.Combine(sPathFrom, sFile), Path.Combine(sPathTo, sFile), true);
-				}
-			}
-			catch (Exception ex)
-			{
-				(new Logger()).WriteError(ex);
-			}
-		}
-		public void StartPhotos() // (просьба была стартовать каждую минуту)
-		{
-			Animation cLoop = null;
-			if (_bStopping)
-				return;
-
-			_cPLPhotoLeft.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_imagesL_in")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1 }, 0);
-			lock (_aLoops)
-			{
-				cLoop = new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_imagesL_loop")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = nLoopImages, oTag = "voting_imagesL_loop" };
-				_cPLPhotoLeft.AnimationAdd(cLoop, 0);
-				_aLoops.Add(cLoop);
-			}
-			_cPLPhotoLeft.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_imagesL_out")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1, oTag = "voting_imagesL_out" }, 0);
-
-			_cPLPhotoRight.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_imagesR_in")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1 }, 0);
-			lock (_aLoops)
-			{
-				cLoop = new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_imagesR_loop")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = true, bOpacity = false, nLoopsQty = nLoopImages, oTag = "voting_imagesR_loop" };
-				_cPLPhotoRight.AnimationAdd(cLoop, 0);
-				_aLoops.Add(cLoop);
-			}
-			_cPLPhotoRight.AnimationAdd(new Animation(Path.Combine(_cPreferences.sFolderMat, "voting_imagesR_out")) { bCUDA = _cPreferences.bCUDA, bKeepAlive = false, bOpacity = false, nLoopsQty = 1, oTag = "voting_imagesR_out" }, 0);
-
-			_dtPhotosLastStart = DateTime.Now;
-		}
-
-
-		public void Stop()
-		{
-			try
-			{
-				_bStopping = true;
-
-
-				if (_cPLPhotoLeft.eStatus == BTL.EffectStatus.Running && 0 == _cPLPhotoLeft.nSumDuration)
-					_cPLPhotoLeft.Stop();
-				if (_cPLPhotoRight.eStatus == BTL.EffectStatus.Running && 0 == _cPLPhotoRight.nSumDuration)
-					_cPLPhotoRight.Stop();
-
-				lock (_aLoops)
-				{
-					foreach (Effect cEffect in _aLoops)
-						if (cEffect.eStatus == BTL.EffectStatus.Running)
-						{
-							if (cEffect.oTag == "voting_imagesL_loop")
-							{
-								_cPLPhotoLeft.nDuration = _cPLPhotoLeft.nFrameCurrent + _nEmergencyDuration;
-								_cPLPhotoLeft.Skip(false, 0, cEffect);
-							}
-							if (cEffect.oTag == "voting_imagesR_loop")
-							{
-								_cPLPhotoRight.nDuration = _cPLPhotoRight.nFrameCurrent + _nEmergencyDuration; 
-								_cPLPhotoRight.Skip(false, 0, cEffect);
-							}
-							if (cEffect.oTag == "voting_top_loop1" || cEffect.oTag == "voting_top_loop2")
-							{
-								_cPLMatTop.nDuration = _cPLMatTop.nFrameCurrent + _nEmergencyDuration;
-								_cPLMatTop.Skip(false, 0, cEffect);
-							}
-							if (cEffect.oTag == "new_votes_loop" || cEffect.oTag == "voting_mid_loop1")
-							{
-								_cPLMatMiddle.nDuration = _cPLMatMiddle.nFrameCurrent + _nEmergencyDuration; 
-								_cPLMatMiddle.Skip(false, 0, cEffect);
-							}
-						}
-						else
-							((Animation)cEffect).nLoopsQty = 10;
-				}
-				(new Logger()).WriteDebug("stopping");
-			}
-			catch (Exception ex)
-			{
-				(new Logger()).WriteError(ex);
-			}
-			if (null != Stopped)
-				Plugin.EventSend(Stopped, this);
-		}
-
-
-
-
-
-
-
-
+                if (null!= _cThreadWorker && _cThreadWorker.IsAlive)
+                {
+                    _cThreadWorker.Abort();
+                    //_cThreadWorker.Join();
+                }
+                if (null != _cThreadWorkerUpdater && _cThreadWorkerUpdater.IsAlive)
+                {
+                    _cThreadWorkerUpdater.Abort();
+                    //_cThreadWorkerUpdater.Join();
+                }
+                (new Logger()).WriteDebug("stop:mid");
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+                //eStatus = BTL.EffectStatus.Error;
+            }
+            eStatus = BTL.EffectStatus.Stopped;
+            if (null != Stopped)
+                Plugin.EventSend(Stopped, this);
+            (new Logger()).WriteDebug("stop:out");
+        }
+        public BTL.EffectStatus __eStatus
+        {
+            get
+            {
+                return ((IPlugin)this).eStatus;
+            }
+        }
 
 
         #region IPlugin
@@ -675,14 +544,14 @@ namespace ingenie.plugins
         {
             get
             {
-				return _eStatus;
+                return _eStatus;
             }
         }
         DateTime IPlugin.dtStatusChanged
         {
             get
             {
-				return _dtStatusChanged;
+                return _dtStatusChanged;
             }
         }
         void IPlugin.Prepare()

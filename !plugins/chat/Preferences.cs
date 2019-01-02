@@ -32,15 +32,36 @@ namespace ingenie.plugins
 			public bool bToUpper;
 			public byte nOpacity;
 			public byte nInDissolve;
-        }
+			public short nShiftTop;
+			public short nPressBottom;
+			public short nCenterShift;
+			public short nLineSpace;
+			public MergingMethod stMerging;
+		}
         public class Roll
         {
+            private int nMinUndisplayedMessages = 10;
+            private int nMaxUndisplayedMessages = 100;
+            private float nMinSecondsPerLine = 2.0f;  // in sec
             public ushort nLayer;
+            public MergingMethod stMerging;
             public float nSpeed;
-			public int nCorrectDelay;
-			public int nCorrectPosition;
-            public uint nSecondsPerLine;
-            public byte nSecondsPerPause;
+            private float _nSecondsPerLine;
+            public float nSecondsPerLine
+            {
+                get
+                {
+                    if (nUndisplayedMessages <= nMinUndisplayedMessages)
+                        return _nSecondsPerLine;
+                    if (nUndisplayedMessages >= nMaxUndisplayedMessages)
+                        return nMinSecondsPerLine;
+                    if (_nSecondsPerLine <= nMinSecondsPerLine)
+                        return _nSecondsPerLine;
+
+                    return nMinSecondsPerLine + (nMaxUndisplayedMessages - nUndisplayedMessages) * (_nSecondsPerLine - nMinSecondsPerLine) / (nMaxUndisplayedMessages - nMinUndisplayedMessages);
+                }
+            }
+            public float nSecondsPerPause;
             public string sMaskPageSingle;
             public string sMaskPageMulti;
             public Rectangle stSize;
@@ -48,17 +69,25 @@ namespace ingenie.plugins
             public SMS cSMSVIP;
             public SMS cSMSPromo;
             public SMS cSMSPhoto;
+            public void SecondsPerLineSet(float nSeconds)
+            {
+                _nSecondsPerLine = nSeconds;
+            }
         }
         public class Crawl
         {
             public Rectangle stSize;
             public float nSpeed;
+            public MergingMethod stMerging;
             public Font cFont;
             public Color stColor;
             public Color stBorderColor;
             public float nBorderWidth;
             public ushort nLayer;
-            public string sText;
+			public short nShiftTop;
+			public short nPressBottom;
+			public bool bRenderFields;
+			public string sText;
             public string sRegistryInfo;
             public byte[] aStartPoints;
             public string sInfoStringNight = "";
@@ -102,21 +131,6 @@ namespace ingenie.plugins
         }
 
         private string _sWorkFolder;
-		static public DB.Credentials DBCredentials //TODO СѓР±СЂР°С‚СЊ СЌС‚Рѕ СЃРІРѕР№СЃС‚РІРѕ РІР°РїС‡Рµ - РєР»Р°СЃСЃ Р‘Р” РјРѕР¶РµС‚ Р±СЂР°С‚СЊ РІСЃРµ СЌС‚Рѕ РЅР°РїСЂСЏРјСѓСЋ РёР· С„Р°Р№Р»Р° РїРµСЂРµС„РµСЂРµРЅСЃРѕРІ
-		{
-			get
-            {
-				return new DB.Credentials()
-				{
-					sServer = "db.channel.replica",
-					nPort = 5432,
-					sDatabase = "replica",
-					sUser = "",
-					sPassword = "",
-					nTimeout = 240
-				};
-            }
-        }
         static public ushort nMessagesQty
         {
             get
@@ -124,6 +138,7 @@ namespace ingenie.plugins
                 return 7;
             }
         }
+        static public int nUndisplayedMessages;
         public bool bMessagesRelease;
         public BroadcastType eBroadcastType;
         public int nSMSQtty;
@@ -133,6 +148,7 @@ namespace ingenie.plugins
         public VIP cVIP;
 
         public string sPhotoPrefix = "PHOTO";
+        static public DB.Credentials cDBCredentials;
 
         public Preferences(string sWorkFolder, string sData)
         {
@@ -142,11 +158,13 @@ namespace ingenie.plugins
             cXmlDocument.LoadXml(sData);
             XmlNode cXmlNode = cXmlDocument.NodeGet("data");
 
-            bMessagesRelease = cXmlNode.AttributeGet<bool>("release", false);
-            eBroadcastType = cXmlNode.AttributeGet<BroadcastType>("type", false);
+            cDBCredentials = new DB.Credentials(cXmlNode.NodeGet("database"));
+
+            bMessagesRelease = cXmlNode.AttributeOrDefaultGet<bool>("release", false);
+            eBroadcastType = cXmlNode.AttributeOrDefaultGet<BroadcastType>("type", BroadcastType.linear);
             nSMSQtty = cXmlNode.AttributeGet<int>("queue");
 
-            XmlNode cNodeChild = cXmlNode.NodeGet("vip");
+			XmlNode cNodeChild = cXmlNode.NodeGet("vip");
             if (null != cNodeChild)
             {
                 cVIP = new VIP();
@@ -185,12 +203,11 @@ namespace ingenie.plugins
             cNodeChild = cXmlNode.NodeGet("roll");
             cRoll = new Roll();
             cRoll.nLayer = cNodeChild.AttributeGet<ushort>("layer");
-            cRoll.nSpeed = cNodeChild.AttributeGet<float>("speed");
-			cRoll.nCorrectDelay = cNodeChild.AttributeGet<int>("correct_delay");
-			cRoll.nCorrectPosition = cNodeChild.AttributeGet<int>("correct_position");
+			cRoll.nSpeed = cNodeChild.AttributeGet<float>("speed");
+			cRoll.stMerging = new MergingMethod(cNodeChild);
             XmlNode cXNGrandChild = cNodeChild.NodeGet("holds");
-            cRoll.nSecondsPerLine = cXNGrandChild.AttributeGet<byte>("line");
-            cRoll.nSecondsPerPause = cXNGrandChild.AttributeGet<byte>("pause");
+            cRoll.SecondsPerLineSet(cXNGrandChild.AttributeGet<float>("line"));
+            cRoll.nSecondsPerPause = cXNGrandChild.AttributeGet<float>("pause");
             cXNGrandChild = cNodeChild.NodeGet("masks");
             cRoll.sMaskPageSingle = cXNGrandChild.NodeGet("single").InnerXml;
             cRoll.sMaskPageMulti = cXNGrandChild.NodeGet("multi").InnerXml;
@@ -206,10 +223,13 @@ namespace ingenie.plugins
             cCrawl = new Crawl();
             cCrawl.sInfoStringNight = System.IO.Path.Combine(sWorkFolder, "data/info_night.dat");
             cCrawl.sCrowlLastStart = System.IO.Path.Combine(sWorkFolder, "data/crowl_last_start.dat"); ;
-
-            cCrawl.nSpeed = cNodeChild.AttributeGet<float>("speed");
+			cCrawl.stMerging = new MergingMethod(cNodeChild);
+			cCrawl.nSpeed = cNodeChild.AttributeGet<float>("speed");
             cCrawl.nLayer = cNodeChild.AttributeGet<ushort>("layer");
-            cCrawl.stSize = SizeParse(cNodeChild.NodeGet("size"));
+			cCrawl.nShiftTop = cXmlNode.AttributeOrDefaultGet<short>("shift_top", 0);
+			cCrawl.nPressBottom = cXmlNode.AttributeOrDefaultGet<short>("press_bot", 0);
+			cCrawl.bRenderFields = cXmlNode.AttributeOrDefaultGet<bool>("render_fields", false);
+			cCrawl.stSize = SizeParse(cNodeChild.NodeGet("size"));
             cCrawl.sText = cNodeChild.NodeGet("text").InnerXml;
             cCrawl.sRegistryInfo = cNodeChild.NodeGet("registration").InnerXml;
 
@@ -255,22 +275,27 @@ namespace ingenie.plugins
                 sSmilesFolder = System.IO.Path.Combine(_sWorkFolder, "footages/smiles/"),
                 sFlagsFolder = System.IO.Path.Combine(_sWorkFolder, "footages/flags/")
             };
-			cRetVal.bToUpper = null == cXmlNode.Attributes["to_upper"] ? false : cXmlNode.AttributeGet<bool>("to_upper");
-			cRetVal.nOpacity = null == cXmlNode.Attributes["opacity"] ? (byte)255 : cXmlNode.AttributeGet<byte>("opacity");
-			cRetVal.nInDissolve = null == cXmlNode.Attributes["in_dissolve"] ? (byte)0 : cXmlNode.AttributeGet<byte>("in_dissolve");
-            XmlNode cXNChild = cXmlNode.NodeGet("font");
+			cRetVal.bToUpper = cXmlNode.AttributeOrDefaultGet<bool>("to_upper", false);
+			cRetVal.nOpacity = cXmlNode.AttributeOrDefaultGet<byte>("opacity", 255);
+			cRetVal.nInDissolve = cXmlNode.AttributeOrDefaultGet<byte>("in_dissolve", 0);
+			cRetVal.nShiftTop = cXmlNode.AttributeOrDefaultGet<short>("shift_top", 0);
+			cRetVal.nPressBottom = cXmlNode.AttributeOrDefaultGet<short>("press_bot", 0);
+			cRetVal.nCenterShift = cXmlNode.AttributeOrDefaultGet<short>("center_shift", 0);  // вниз на сколько надо сдвнуть строку, чтобы в своей area она стала по центру
+			cRetVal.nLineSpace = cXmlNode.AttributeOrDefaultGet<short>("line_cpace", 0);    
+			XmlNode cXNChild = cXmlNode.NodeGet("font");
             cRetVal.cFont = FontParse(cXNChild);
             cRetVal.stColor = ColorParse(cXNChild.NodeGet("color"));
             cXNChild = cXNChild.NodeGet("border");
             cRetVal.nBorderWidth = cXNChild.AttributeGet<float>("width");
             cRetVal.stBorderColor = ColorParse(cXNChild.NodeGet("color", false));
+			cRetVal.stMerging = cRoll.stMerging;
             return cRetVal;
         }
         Color ColorParse(XmlNode cXmlNode)
         {
             if (null == cXmlNode)
                 return Color.Black;
-            return Color.FromArgb((null == cXmlNode.Attributes["alpha"] ? 255 : cXmlNode.AttributeGet<byte>("alpha")), cXmlNode.AttributeGet<byte>("red"), cXmlNode.AttributeGet<byte>("green"), cXmlNode.AttributeGet<byte>("blue"));
+            return Color.FromArgb(cXmlNode.AttributeOrDefaultGet<byte>("alpha", 255), cXmlNode.AttributeGet<byte>("red"), cXmlNode.AttributeGet<byte>("green"), cXmlNode.AttributeGet<byte>("blue"));
         }
         Rectangle SizeParse(XmlNode cXmlNode)
         {
@@ -283,7 +308,7 @@ namespace ingenie.plugins
         }
         Font FontParse(XmlNode cXmlNode)
         {
-            return new Font(cXmlNode.AttributeValueGet("name"), cXmlNode.AttributeGet<float>("size"), (null == cXmlNode.Attributes["style"] ? FontStyle.Regular : cXmlNode.AttributeGet<FontStyle>("style")));
+			return new Font(cXmlNode.AttributeValueGet("name"), cXmlNode.AttributeGet<float>("size"), cXmlNode.AttributeOrDefaultGet<FontStyle>("style", FontStyle.Regular));
         }
     }
 }

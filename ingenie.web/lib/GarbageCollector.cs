@@ -25,7 +25,7 @@ namespace ingenie.web.lib
 
 		private object cSyncRoot;
 		public string sPreset { get; set; }
-		public string sCurrentClass { get; set; }
+        public helpers.replica.pl.Class[] aCurrentClasses { get; set; }
 		public DateTime dtStatusChanged { get; set; }
 
 		virtual public Status eStatus

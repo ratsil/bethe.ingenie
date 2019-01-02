@@ -21,9 +21,12 @@ namespace ingenie.web.lib
 		}
 		public DBInteract()
 		{
-            _cDB = new DB();
-            _cDB.CredentialsLoad();
-        }
+			(new Logger()).WriteDebug("DBInteract-1");
+			_cDB = new DB();
+			(new Logger()).WriteDebug("DBInteract-2");
+			_cDB.CredentialsLoad();
+			(new Logger()).WriteDebug("DBInteract-3");
+		}
 
 		//public IdNamePair GetCurrentShiftTemplate()
 		//{

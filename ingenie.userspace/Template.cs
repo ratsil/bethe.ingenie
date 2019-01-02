@@ -170,8 +170,15 @@ namespace ingenie.userspace
 		}
 		~Template()
 		{
-			Dispose();
-		}
+            try
+            {
+                Dispose();
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
+        }
 		public void Dispose()
 		{
 			try
@@ -301,7 +308,10 @@ namespace ingenie.userspace
                         cInclusion.LoadXML(aChildNodes[nIndx]);
                         aInclusions.Add(cInclusion);
                         break;
-					case "plugin":
+                    case "effects":
+                        ParseEffects(aChildNodes[nIndx]);
+                        break;
+                    case "plugin":
 						cAtom = new Plugin();
 						break;
 					case "video":
@@ -337,7 +347,53 @@ namespace ingenie.userspace
                     this.aInclusions = aInclusions.ToArray();
 			}
 		}
-		internal protected string ProcessMacros(string sText)
+        private void ParseEffects(XmlNode cXmlNode)
+        {
+            XmlNodeList aChildNodes = cXmlNode.ChildNodes;
+            Atom cAtom;
+            for (int nIndx = 0; nIndx < aChildNodes.Count; nIndx++)
+            {
+                cAtom = null;
+                switch (aChildNodes[nIndx].Name)
+                {
+                    case "video":
+                        cAtom = new Video(aChildNodes[nIndx]);
+                        break;
+                    case "audio":
+                        cAtom = new Audio(aChildNodes[nIndx]);
+                        break;
+                    case "animation":
+                        cAtom = new Animation(aChildNodes[nIndx]);
+                        break;
+                    case "clock":
+                        cAtom = new Clock(aChildNodes[nIndx]);
+                        break;
+                    case "text":
+                        cAtom = new Text(aChildNodes[nIndx]);
+                        break;
+                    case "playlist":
+                        cAtom = new Playlist(aChildNodes[nIndx]);
+                        break;
+                    case "roll":
+                        cAtom = new Roll(aChildNodes[nIndx]);
+                        break;
+                    case "composite":
+                        cAtom = new Composite(aChildNodes[nIndx]);
+                        break;
+                    case "#comment":
+                        break;
+                    default:
+                        throw new Exception("unknown effect found: '" + aChildNodes[nIndx].Name + "'");
+                }
+                if (null != cAtom)
+                {
+                    cAtom.cTemplate = this;
+                    if (((Effect)cAtom).cShow.bShow)
+                        _aAtoms.Add(cAtom);
+                }
+            }
+        }
+        internal protected string ProcessMacros(string sText)
 		{
 			string sRetVal = ProcessRuntimes(sText);
 			System.Text.RegularExpressions.MatchCollection cMatches;
@@ -358,7 +414,7 @@ namespace ingenie.userspace
 					}
 					catch
 					{
-						(new Logger()).WriteNotice("got error while processing macro [" + cMatch.Value + "]");
+						(new Logger()).WriteNotice("template got error while processing macro [" + cMatch.Value + "]");
 						throw;
 					}
 				}
@@ -405,9 +461,10 @@ namespace ingenie.userspace
 			}
 			catch (Exception ex)
 			{
+				string sTrace = "our stacktrace: ";
 				if (null != cStackFrame)
-					ex = new Exception(ex.Message + " stacktrace:" + cStackFrame.GetMethod().Name + " at " + cStackFrame.GetFileName() + ":" + cStackFrame.GetFileLineNumber());
-				(new Logger()).WriteError(ex);
+					sTrace += "[" + cStackFrame.GetMethod().Name + " at " + cStackFrame.GetFileName() + ":" + cStackFrame.GetFileLineNumber() + "[file=" + sFile + "]]";
+				(new Logger()).WriteError(sTrace, ex);
 			}
 		}
 		public void Prepare()
@@ -551,7 +608,7 @@ namespace ingenie.userspace
 		private void OnAtomDone(Atom cSender)
 		{
 
-			(new Logger()).WriteDebug3("OnAtomDone: Template=" + (null != cSender && null != cSender.cTemplate && null != cSender.cTemplate.sFile ? cSender.cTemplate.sFile : "???") + " cTag=" + (null != cSender && null != cSender.oTag ? cSender.oTag.ToString() : "???"));
+			(new Logger()).WriteDebug3("OnAtomDone: Template=" + (null != cSender && null != cSender.cTemplate && null != cSender.cTemplate.sFile ? cSender.cTemplate.sFile : "???") + " info=" + (null != cSender && null != cSender.oTag ? cSender.oTag.ToString() : "???"));
 			if (null != cSender)
 				cSender.Stopped -= OnAtomDone;
 			if (null == _aAtoms && (Status.Disposing != eStatus || Status.Disposed != eStatus))

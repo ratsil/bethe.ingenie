@@ -9,6 +9,7 @@ using System.Xml;
 using helpers.extensions;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 
 namespace ingenie.plugins
 {
@@ -58,7 +59,7 @@ namespace ingenie.plugins
                 public string sOutput;
                 public int[] aHashcodes;
             }
-			public delegate void Render(string sBlendFile, string sPythonFile, string sOutput, string sPrefix, bool bUseOutput);
+			public delegate void Render(string sBlendFile, string sPythonFile, string sOutput, string sPrefix, bool bUseOutput, bool bZip);
             static private List<Cache> _aCache = new List<Cache>();
             private string _sRequest;
 			private byte _nTemplate;
@@ -111,7 +112,7 @@ namespace ingenie.plugins
                         foreach (XmlNode cXNMacro in aItems[nID].NodesGet("item"))
                             sPython = sPython.Replace("{%_" + cXNMacro.AttributeValueGet("id") + "_%}", cXNMacro.InnerText.FromXML());
                         File.WriteAllText(sPythonFile, sPython, System.Text.Encoding.GetEncoding(1251));
-                        fRender(_cPreferences._sBlendFile, sPythonFile, sFolder, aItems[nID].AttributeValueGet("output"), _cPreferences._bUseOutput);//, _cPreferences._sEngine, _cPreferences._sThreads));
+                        fRender(_cPreferences._sBlendFile, sPythonFile, sFolder, aItems[nID].AttributeValueGet("output"), _cPreferences._bUseOutput, _cPreferences.bZip);//, _cPreferences._sEngine, _cPreferences._sThreads));
                         cCached.aHashcodes[nID + 1] = nHash;
                     }
 					if (bClear)
@@ -128,17 +129,55 @@ namespace ingenie.plugins
 							}
 						}
 					}
-                    if (null != sFolder)
-                    {
-                        File.Delete(sPythonFile);
-                        foreach (string sFile in Directory.GetFiles(sFolder))
-                        {
+					if (null != sFolder)
+					{
+						File.Delete(sPythonFile);
+
+						ZipArchive cZip = null;
+						FileStream cStream = null;
+						string sTarget = Path.Combine(_cPreferences._sOutputTarget, "target.zip");
+						(new Logger()).WriteNotice("deleted file [" + sPythonFile + "] and now ready to copy [from=" + sFolder + "][to=" + sTarget + "]");
+						bool bUpdate = false;
+						string sFN;
+						ZipArchiveEntry cZEntry;
+
+						if (_cPreferences.bZipTarget)
+						{
+							if (!File.Exists(sTarget))
+							{
+								cStream = System.IO.File.OpenWrite(sTarget);
+								cZip = new ZipArchive(cStream, ZipArchiveMode.Create, false);
+							}
+							else
+							{
+								cStream = System.IO.File.Open(sTarget, FileMode.Open);
+								cZip = new ZipArchive(cStream, ZipArchiveMode.Update, false);
+								bUpdate = true;
+							}
+						}
+
+						foreach (string sFile in Directory.GetFiles(sFolder))
+						{
+							sFN = Path.GetFileName(sFile);
+							if (bUpdate)
+							{
+								cZEntry = cZip.GetEntry(sFN);
+								if (null != cZEntry)
+									cZEntry.Delete();
+							}
+
 							for (int nI = 0; nI < 10; nI++)
 							{
 								try
 								{
-									//File.Copy(sFile, Path.Combine(_cPreferences._sOutputTarget, Path.GetFileName(sFile)), true);
-									new CopyFileExtended(sFile, Path.Combine(_cPreferences._sOutputTarget, Path.GetFileName(sFile)), 0, 1000);
+									if (_cPreferences.bZipTarget)
+									{
+										cZip.CreateEntryFromFile(sFile, sFN, CompressionLevel.NoCompression);
+									}
+									else
+									{
+										File.Copy(sFile, Path.Combine(_cPreferences._sOutputTarget, sFN), true);
+									}
 									break;
 								}
 								catch (Exception ex)
@@ -157,6 +196,8 @@ namespace ingenie.plugins
 							}
 							System.Threading.Thread.Sleep(1);  // проверка   //DNF
 						}
+						cZip.Dispose();
+						cStream.Close();
                     }
                 }
             }
@@ -210,13 +251,58 @@ namespace ingenie.plugins
 				return _sBlendFile;
 			}
 		}
+		public bool bZip
+		{
+			get
+			{
+				return _bZip;
+			}
+		}
+		public bool bZipTarget
+		{
+			get
+			{
+				return _bZipTarget;
+			}
+		}
 		public string sPythonFile
 		{
 			get
 			{
-				if (null == _sPythonFile)
-					File.WriteAllText(_sPythonFile = Path.GetTempFileName(), _sPython, System.Text.Encoding.GetEncoding(1251));
-				return _sPythonFile;
+				lock(_oLockFile)
+				{
+					if (null == _sPythonFile)
+					{
+						_sPythonFile = Path.GetTempFileName();
+						(new Logger()).WriteNotice("[_sPythonFile created = " + Path.GetFileName(_sPythonFile) + "]");
+						//int nPF = Convert.ToInt32(Path.GetFileName(_sPythonFile).Substring(3, 4), 16) - 1;
+						//string sPF = Path.Combine(Path.GetTempPath(), ("tmp" + nPF.ToString("X") + ".tmp"));
+						//if (File.Exists(sPF))
+						//	(new Logger()).WriteNotice("sPythonFile [file is there! " + sPF + "]");
+						//else
+						//	(new Logger()).WriteNotice("sPythonFile [no file! " + sPF + "]");
+
+
+
+
+						//_sPythonFile = Path.GetTempFileName();
+						//File.Delete(_sPythonFile);
+						File.WriteAllText(_sPythonFile, _sPython, System.Text.Encoding.GetEncoding(1251));
+						(new Logger()).WriteDebug("pf created: " + _sPythonFile);
+						System.Threading.Thread.Sleep(300);
+
+
+
+
+
+						//if (File.Exists(sPF))
+						//	(new Logger()).WriteNotice("sPythonFile2 [file is there! " + sPF + "]");
+						//else
+						//	(new Logger()).WriteNotice("sPythonFile2 [no file! " + sPF + "]");
+
+					}
+					return _sPythonFile;
+				}
 			}
 		}
 		public bool bExists
@@ -245,11 +331,14 @@ namespace ingenie.plugins
         private bool _bExists;
 		private bool _bExistsExclamation;
 		private IVideo _iVideo;
+		private object _oLockFile;
 
 		private string _sEngine;
 		private string _sThreads;
         private string _sPython;
         private string _sBlendFile;
+		private bool _bZip;
+		private bool _bZipTarget;
 		private bool _bUseOutput;
 
 		private bool WaitForTargetFolder(string sTarget)
@@ -273,6 +362,8 @@ namespace ingenie.plugins
 		}
         public Preferences(string sWorkFolder, string sData)
         {
+			_oLockFile = new object();
+			_sPythonFile = null;
 			_bUseOutput = true;
             XmlDocument cXmlDocument = new XmlDocument();
             XmlNode cXmlNode;
@@ -375,8 +466,10 @@ namespace ingenie.plugins
 			cChildNode = cXmlNode.NodeGet("python", false);
 			if (null != cChildNode)
 				_sPython = cChildNode.InnerXml.Trim().FromXML();
-			_sPythonFile = null;
 			_sBlendFile = cXmlNode.AttributeValueGet("blend");
+			_bZip = cXmlNode.AttributeOrDefaultGet<bool>("zip", false);
+			_bZipTarget = cXmlNode.AttributeOrDefaultGet<bool>("zip_target", false);
+
 
 			if (null != (cChildNode = cXmlNode.NodeGet("animation", false)))
 			{
@@ -388,15 +481,16 @@ namespace ingenie.plugins
 			}
 			if(null != _iVideo)
 			{
-				if(null != (sValue = cChildNode.AttributeValueGet("cuda", false)))
-					_iVideo.bCUDA = sValue.ToBool();
-				if(null != (sValue = cChildNode.AttributeValueGet("opacity", false)))
-					_iVideo.bOpacity = sValue.ToBool();
-				if(null != (sValue = cChildNode.AttributeValueGet("layer", false)))
-					((IEffect)_iVideo).nLayer = sValue.ToUShort();
-				if (null != (cChildNode = cChildNode.NodeGet("size", false)))
-				{
-					_iVideo.stArea = new Area(
+                _iVideo.stMergingMethod = new MergingMethod(cChildNode);
+                if (null != (sValue = cChildNode.AttributeValueGet("opacity", false)))
+                    _iVideo.bOpacity = sValue.ToBool();
+                if (null != (sValue = cChildNode.AttributeValueGet("delay", false)))
+                    ((BTL.Play.Effect)_iVideo).nDelay = sValue.ToULong();
+                if (null != (sValue = cChildNode.AttributeValueGet("layer", false)))
+                    ((IEffect)_iVideo).nLayer = sValue.ToUShort();
+                if (null != (cChildNode = cChildNode.NodeGet("size", false)))
+                {
+                    _iVideo.stArea = new Area(
 									cChildNode.AttributeGet<short>("left"),
 									cChildNode.AttributeGet<short>("top"),
 									cChildNode.AttributeGet<ushort>("width"),
@@ -463,6 +557,14 @@ namespace ingenie.plugins
 				{
 					if (Directory.Exists(_sOutputTarget))
 						Directory.Delete(_sOutputTarget, true);
+
+
+					//ZipArchive cZip = new ZipArchive(System.IO.File.OpenWrite(AddExclamationToFolder(_sOutputTarget)), ZipArchiveMode.Create);
+					//foreach (string sFile in Directory.GetFiles(AddExclamationToFolder(_sOutputTarget)))
+					//{
+					//	cZip.CreateEntryFromFile(sFile, Path.GetFileName(sFile), CompressionLevel.NoCompression);
+					//	File.Delete(sFile);
+					//}
 					Directory.Move(AddExclamationToFolder(_sOutputTarget), _sOutputTarget);
 				}
 			}

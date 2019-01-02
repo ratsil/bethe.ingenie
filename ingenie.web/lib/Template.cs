@@ -111,7 +111,7 @@ namespace ingenie.web.lib
             switch (cMacro.cType.sName)
             {
                 case "sql":
-                    sRetVal = cMacro.Execute();
+                    sRetVal = cMacro.Execute().FromDB();
                     break;
                 default:
                     throw new Exception("обнаружен неизвестный тип макро-строки [" + cMacro.cType.sName + "] в темплейте [" + sFile + "]"); //TODO LANG
@@ -128,7 +128,7 @@ namespace ingenie.web.lib
         public void TextCreate(string sText)
         {
             Text cText = new Text();
-            cText.cFont = new Font() { sName = "Arial", nSize = 1, nFontStyle = 1, cBorder = new Border(), cColor = new Color(), nWidth = 0 };
+            cText.cFont = new Font() { sName = "Arial", nSize = 10, nFontStyle = 1, cBorder = new Border(), cColor = new Color(), nWidth = 0 };
             cText.sText = sText;
             _aAtoms.Add(cText);
         }

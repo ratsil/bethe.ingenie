@@ -1,4 +1,4 @@
-//#define DEBUG1
+п»ї//#define DEBUG1
 
 using System;
 using System.Collections.Generic;
@@ -17,7 +17,7 @@ namespace ingenie.plugins
         public DBInteract()
         {
             _cDB = new DB();
-            _cDB.CredentialsSet(Preferences.DBCredentials);
+            _cDB.CredentialsSet(Preferences.cDBCredentials);
 		}
         static long nIDs = 0;
         static DateTime dtLast = DateTime.MinValue;
@@ -27,11 +27,11 @@ namespace ingenie.plugins
 			//if (5 > DateTime.Now.Subtract(dtLast).TotalMinutes)
 			//    return aq;
 			//dtLast = DateTime.Now;
-			//aq.Enqueue(new Message(nIDs, nIDs++, new Gateway.IP("1.1.1.1"), 1, 66893782672, 5743, "тест1", null, DateTime.Now, DateTime.MaxValue));
-			//aq.Enqueue(new Message(nIDs, nIDs++, new Gateway.IP("1.1.1.1"), 1, 66893782672, 5743, "тест2 МНОГОСТРОЧКА!! ЗНАЕТ СКОЛЬКО БУДЕТ СТРОК!!! sdhfjshgdfjhsf bsdfhsdfhsdf s dfhjhhjbsjhdfb sdfjhb sdhfjshgdfjhsf bsdfhsdfhsdf s dfhjhhjbsjhdfb sdfjhb sdhfjshgdfjhsf bsdfhsdfhsdf s dfhjhhjbsjhdfb sdfjhb", null, DateTime.Now, DateTime.MaxValue));
-			//aq.Enqueue(new Message(nIDs, nIDs++, new Gateway.IP("1.1.1.1"), 1, 66893782672, 5743, "тест3 sjdfjk 324523 45 234 52345d fg sdfgfh", null, DateTime.Now, DateTime.MaxValue));
-			//aq.Enqueue(new Message(nIDs, nIDs++, new Gateway.IP("1.1.1.1"), 1, 66893782672, 5743, "тест4", null, DateTime.Now, DateTime.MaxValue));
-			//aq.Enqueue(new Message(nIDs, nIDs++, new Gateway.IP("1.1.1.1"), 1, 66893782672, 5743, "тест5", null, DateTime.Now, DateTime.MaxValue));
+			//aq.Enqueue(new Message(nIDs, nIDs++, new Gateway.IP("1.1.1.1"), 1, 66893782672, 5743, "С‚РµСЃС‚1", null, DateTime.Now, DateTime.MaxValue));
+			//aq.Enqueue(new Message(nIDs, nIDs++, new Gateway.IP("1.1.1.1"), 1, 66893782672, 5743, "С‚РµСЃС‚2 РњРќРћР“РћРЎРўР РћР§РљРђ!! Р—РќРђР•Рў РЎРљРћР›Р¬РљРћ Р‘РЈР”Р•Рў РЎРўР РћРљ!!! sdhfjshgdfjhsf bsdfhsdfhsdf s dfhjhhjbsjhdfb sdfjhb sdhfjshgdfjhsf bsdfhsdfhsdf s dfhjhhjbsjhdfb sdfjhb sdhfjshgdfjhsf bsdfhsdfhsdf s dfhjhhjbsjhdfb sdfjhb", null, DateTime.Now, DateTime.MaxValue));
+			//aq.Enqueue(new Message(nIDs, nIDs++, new Gateway.IP("1.1.1.1"), 1, 66893782672, 5743, "С‚РµСЃС‚3 sjdfjk 324523 45 234 52345d fg sdfgfh", null, DateTime.Now, DateTime.MaxValue));
+			//aq.Enqueue(new Message(nIDs, nIDs++, new Gateway.IP("1.1.1.1"), 1, 66893782672, 5743, "С‚РµСЃС‚4", null, DateTime.Now, DateTime.MaxValue));
+			//aq.Enqueue(new Message(nIDs, nIDs++, new Gateway.IP("1.1.1.1"), 1, 66893782672, 5743, "С‚РµСЃС‚5", null, DateTime.Now, DateTime.MaxValue));
 			//return aq;
 			if (null == sPrefix)
 				sPrefix = "";
@@ -55,6 +55,10 @@ namespace ingenie.plugins
 				(new Logger()).WriteDebug3(sSQL);
 			}
         }
+        public int MessagesUndisplayedCountGet()
+        {
+            return MessagesCountGet("`dtDisplay` IS NULL");
+        }
     }
     public class Chat : MarshalByRefObject, IPlugin
     {
@@ -66,8 +70,8 @@ namespace ingenie.plugins
 		private DateTime _dtStatusChanged;
         private SMSChat _cSMSChat;
         private Preferences _cPreferences;
-        private int _nPromoReleased = 0;  //-1 нет 1 да 0 - после перезагрузки сервиса
-        private Preferences.Promo _cPromoLast   //выдаём последнее промо снабжая его временем выхода (из файла vip.dat)
+        private int _nPromoReleased = 0;  //-1 РЅРµС‚ 1 РґР° 0 - РїРѕСЃР»Рµ РїРµСЂРµР·Р°РіСЂСѓР·РєРё СЃРµСЂРІРёСЃР°
+        private Preferences.Promo _cPromoLast   //РІС‹РґР°С‘Рј РїРѕСЃР»РµРґРЅРµРµ РїСЂРѕРјРѕ СЃРЅР°Р±Р¶Р°СЏ РµРіРѕ РІСЂРµРјРµРЅРµРј РІС‹С…РѕРґР° (РёР· С„Р°Р№Р»Р° vip.dat)
         {
             get
             {
@@ -77,7 +81,7 @@ namespace ingenie.plugins
                 if (-1 == _nPromoReleased)
                     return cRetVal;
                 if (0 == _nPromoReleased)
-                    _nPromoReleased = 1; //здесь можно бы реализовать отдачу предыдущего promo, а пока просто будем его пропускать. Но это только при сбоях...
+                    _nPromoReleased = 1; //Р·РґРµСЃСЊ РјРѕР¶РЅРѕ Р±С‹ СЂРµР°Р»РёР·РѕРІР°С‚СЊ РѕС‚РґР°С‡Сѓ РїСЂРµРґС‹РґСѓС‰РµРіРѕ promo, Р° РїРѕРєР° РїСЂРѕСЃС‚Рѕ Р±СѓРґРµРј РµРіРѕ РїСЂРѕРїСѓСЃРєР°С‚СЊ. РќРѕ СЌС‚Рѕ С‚РѕР»СЊРєРѕ РїСЂРё СЃР±РѕСЏС…...
                 cRetVal = _cPreferences.cVIP.aPromos[0];
                 int nID = 0;
                 if (File.Exists(_cPreferences.cVIP.sFile))
@@ -145,7 +149,8 @@ namespace ingenie.plugins
 			_dtStatusChanged = DateTime.Now;
 			_bWorkerEnd = true;
 			_bWorkerSMSEnd = true;
-        }
+			_oLock = new object();
+		}
         public void Create(string sWorkFolder, string sData) 
         {
             _cPreferences = new Preferences(sWorkFolder, sData);
@@ -154,7 +159,6 @@ namespace ingenie.plugins
         {
             try
             {
-                DisCom.Init();
                 _bStopped = true;
                 _aqSMSs = new Queue<SMS>();
                 (_cSMSChat = new SMSChat(_cPreferences)).Init(); 
@@ -193,6 +197,7 @@ namespace ingenie.plugins
         }
 		DateTime dtNextTimeLog_Worker = DateTime.MinValue;
 		DateTime dtNextTimeLog_WorkerSMS = DateTime.MinValue;
+		private object _oLock;
         private void Worker(object cState)
         {
             _bStopped = false;
@@ -205,7 +210,8 @@ namespace ingenie.plugins
 					_bWorkerEnd = true;
 					return;
 				}
-                Queue<ChatInOut> aqChatInOuts = null;
+				Logger.Timings cTimings = new helpers.Logger.Timings("chat:Worker");
+				Queue<ChatInOut> aqChatInOuts = null;
                 DateTime dtBase = DateTime.Now;
                 DBInteract cDBI = null;
                 PlaylistItem cCurrentPLI = null;
@@ -288,11 +294,11 @@ namespace ingenie.plugins
                         Thread.Sleep(nMSStartDelay);
                     _cSMSChat.Start();
 
-//#if UNLIMIT
-    //while (!_bStopped)
-//#else
-    //while (!_cSMSChat.IsChatTerminating)
-//#endif
+					//#if UNLIMIT
+					//while (!_bStopped)
+					//#else
+					//while (!_cSMSChat.IsChatTerminating)
+					//#endif
 					while (ChatMustGoOn()) 
                     {
 						//if (DateTime.Now > dtNextTimeLog_Worker)
@@ -313,11 +319,19 @@ namespace ingenie.plugins
 								}
 							}
 						}
-                        Thread.Sleep(500);
+
+						//GC.Collect
+						Thread.Sleep(500);
                     }
 					(new Logger()).WriteDebug3("chat stopped" + (DateTime.MaxValue > dtStop ? ":" + dtStop.ToStr() : ""));
-					_cSMSChat.Stop();
-                    _cSMSChat.Release();     // ушла в stop()
+					lock (_oLock)
+					{
+						if (null != _cSMSChat)
+						{
+							_cSMSChat.Stop();
+							_cSMSChat.Release();     // СѓС€Р»Р° РІ stop()
+						}
+					}
                     (new Logger()).WriteDebug4("return");
                 }
             }
@@ -327,7 +341,7 @@ namespace ingenie.plugins
                 try
                 {
                     _cSMSChat.Stop();
-					//_cSMSChat.Release();    ушла в stop()
+					//_cSMSChat.Release();    СѓС€Р»Р° РІ stop()
                 }
                 catch (Exception ex1)
                 {
@@ -340,8 +354,8 @@ namespace ingenie.plugins
 				if (!_bStopped)
 					Stop();
 				//if (!_bStopped && null != Stopped)
-				//    Stopped(this);                     ушла в stop()
-				//_bStopped = true;                      ушла в stop()
+				//    Stopped(this);                     СѓС€Р»Р° РІ stop()
+				//_bStopped = true;                      СѓС€Р»Р° РІ stop()
 				(new Logger()).WriteNotice("chat worker stopped");
 			}
 			catch (Exception ex)
@@ -356,6 +370,7 @@ namespace ingenie.plugins
 			{
 				int nCount;
 				Queue<SMS> aqSMSs = null;
+				Logger.Timings cTimings = new helpers.Logger.Timings("chat:WorkerSMS");
 				while (!_bStopped)
 				{
 					//if (DateTime.Now > dtNextTimeLog_WorkerSMS)
@@ -385,6 +400,8 @@ namespace ingenie.plugins
 					{
 						(new Logger()).WriteError(ex);
 					}
+
+					//GC.Collect
 					Thread.Sleep(500);
 				}
 				MessagesRelease();
@@ -405,16 +422,20 @@ namespace ingenie.plugins
                 _bStopped = true;
                 _cSMSChat.IsChatTerminating = true;
 				(new Logger()).WriteNotice("Stop: IsChatTerminating = true");
-                DateTime dtNow = DateTime.Now.AddSeconds(15);
+                DateTime dtNow = DateTime.Now.AddSeconds(5);
 				while ((_cSMSChat.IsChatTerminating || _cSMSChat.IsInfoOnAir) && DateTime.Now < dtNow)
                     Thread.Sleep(50);
 
 				while (!_bWorkerSMSEnd && !_bWorkerEnd)
 					Thread.Sleep(50);
 
+				_cSMSChat.Stop();
 				_cSMSChat.Release();
 				(new Logger()).WriteNotice("Stop: after _cSMSChat.Release();");
-				_cSMSChat = null;
+				lock (_oLock)
+				{
+					_cSMSChat = null;
+				}
 				_cPreferences = null;
 			}
             catch (Exception ex)
@@ -517,10 +538,11 @@ namespace ingenie.plugins
                         //cSMS.Color = null;
                         //cSMS.Color = Color.FromArgb(0, 0, 0, 0);
                         cSMS.ID = -123456;
-                        cSMS.sText = "По техническим причинам SMS-чат временно заблокирован! Приносим извинения за причиненные неудобства! :)";
+                        cSMS.sText = "РџРѕ С‚РµС…РЅРёС‡РµСЃРєРёРј РїСЂРёС‡РёРЅР°Рј SMS-С‡Р°С‚ РІСЂРµРјРµРЅРЅРѕ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ! РџСЂРёРЅРѕСЃРёРј РёР·РІРёРЅРµРЅРёСЏ Р·Р° РїСЂРёС‡РёРЅРµРЅРЅС‹Рµ РЅРµСѓРґРѕР±СЃС‚РІР°! :)";
                         cSMS.Phone = "+70000000003";
                         cSMS.eType = SMS.Type.Promo;
 						aRetVal.Enqueue(cSMS);
+                        Preferences.nUndisplayedMessages = 1;
                         return aRetVal;
                     }
                 }
@@ -529,6 +551,7 @@ namespace ingenie.plugins
                     (new Logger()).WriteError(ex);
                 }
 
+                Preferences.nUndisplayedMessages = cDBI.MessagesUndisplayedCountGet();
                 Preferences.Promo cPromo;
                 Preferences.Promo cPromoLast = _cPromoLast;
                 if (null != cPromoLast)

@@ -96,7 +96,7 @@
     </ProjectReference>
     <ProjectReference Include="..\..\..\BTL\BTL.csproj">
       <Project>{06170AA8-16F3-4232-A799-4B181C7F9196}</Project>
-      <Name>BTL %28btl\BTL%29</Name>
+      <Name>BTL</Name>
     </ProjectReference>
     <ProjectReference Include="..\ingenie.plugins\ingenie.plugins.csproj">
       <Project>{5FC0EA93-028A-40E8-ACE3-B75DC74B5911}</Project>

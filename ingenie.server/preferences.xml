@@ -4,13 +4,11 @@
 		<attribute>logger.level</attribute>
 		<node>logger.excludes</node>
 	</reload>
-	<btl cuda="true">
-		<device target="0" type="output" fps="25">
-			<audio rate="48000" channels="8" bits="16" volume_change="0">true</audio>
-			<video format="pal" pixels="bgra" key="false">true</video>
-			<queue device="5" btl="25">
-				<bias slip="7" delay="200">1</bias>
-			</queue>
+	<btl merging="CUDA" merging_id="0" cls="true" debug_folder="/path">  <!-- cuda="true" is depricated  merging=CUDA||DisCom||DisComExternal -->
+		<device make="aja" target="0" channel="0">
+			<audio rate="48000" channels="8" bits="16" bits_send="32" channels_ffmpeg="2" />			<!--if make='aja' ch=6 bits_send = 32  if 'decklink' ch=8, delete bits_send parameter or bits_send=16 -->
+			<video anamorph="true" alpha="false" />
+			<queue clock_bias="60" ffmpeg="15" animation="15" packets="200000000" threads="4" frame_timeout="00:00:08" gc_interval="50" /> <!-- clock_bias - adding in clock effect to correct current time (in frames)  -->
 		</device>
 	</btl>
 	<ingenie>
@@ -20,6 +18,7 @@
 	<helpers>
 		<pixelsmap>
 			<cuda version="21" />
+			<discom threads="auto" />
 		</pixelsmap>
 		<common>
 			<logger level="debug1">
@@ -29,10 +28,10 @@
 						<target level="error">user@example.com</target>
 						<target level="fatal">user@example.com</target>
 					</targets>
+					<excludes>
+						<pattern>*abnormal*</pattern>
+					</excludes>
 				</mail>
-				<excludes>
-					<pattern>*abnormal*</pattern>
-				</excludes>
 			</logger>
 		</common>
 	</helpers>

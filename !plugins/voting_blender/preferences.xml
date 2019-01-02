@@ -1,0 +1,377 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<preferences>
+	<blender folder="/path/">
+		<mat blend="mat.blend" threads="16">
+			import bpy
+			import os
+			import shutil
+
+			sPath = "{%_PATH_%}"
+			sFileLeft = "{%_IMAGE_LEFT_%}"
+			sFileRight = "{%_IMAGE_RIGHT_%}"
+			aTexts = ({%_TEXT_TOP_ARRAY_%})
+			sTextLeft = '{%_TEXT_LEFT_%}'
+			sTextRight = '{%_TEXT_RIGHT_%}'
+
+			# Test values
+			#sPath = "/path/"
+			#aTexts = ("TEXT1 \"QUOTE1\"", "TEXT2 \"QUOTE2\"","TEXT3","TEXT4")
+			#sFileLeft = "image1.jpg"
+			#sFileRight = "image2.jpg"
+
+			def Init():
+			global sMovieForTop, sMovieForBottom
+			sMovieForTop = "top_in.mov"
+			sMovieForBottom = "bot_in.mov"
+			global sImageFolder
+			sImageFolder = "//images/"
+			global sPathBottomIn, sPathBottomLoop, sPathBottomOut
+			sPathBottomIn = os.path.join(sPath, "voting_bot_in/")
+			sPathBottomLoop = os.path.join(sPath, "voting_bot_loop/")
+			sPathBottomOut = os.path.join(sPath, "voting_bot_out/")
+			global sPathTopIn, sPathTopLoop1, sPathTopLoop2, sPathTopSwitch1, sPathTopSwitch2, sPathTopOut
+			sPathTopIn = os.path.join(sPath, "voting_top_in/")
+			sPathTopLoop1 = os.path.join(sPath, "voting_top_loop1/")
+			sPathTopSwitch1 = os.path.join(sPath, "voting_top_switch1/")
+			sPathTopLoop2 = os.path.join(sPath, "voting_top_loop2/")
+			sPathTopSwitch2 = os.path.join(sPath, "voting_top_switch2/")
+			sPathTopOut = os.path.join(sPath, "voting_top_out/")
+			global sPathImagesLIn, sPathImagesLLoop, sPathImagesLOut
+			sPathImagesLIn = os.path.join(sPath, "voting_imagesL_in/")
+			sPathImagesLLoop = os.path.join(sPath, "voting_imagesL_loop/")
+			sPathImagesLOut = os.path.join(sPath, "voting_imagesL_out/")
+			global sPathImagesRIn, sPathImagesRLoop, sPathImagesROut
+			sPathImagesRIn = os.path.join(sPath, "voting_imagesR_in/")
+			sPathImagesRLoop = os.path.join(sPath, "voting_imagesR_loop/")
+			sPathImagesROut = os.path.join(sPath, "voting_imagesR_out/")
+
+			def ChangeTextBox (sScene, sTextBox, sText):
+			if bpy.context.screen.scene != bpy.data.scenes[sScene]:
+			bpy.context.screen.scene = bpy.data.scenes[sScene]
+			bpy.context.scene.objects.active = bpy.context.scene.objects[sTextBox]
+			bpy.ops.object.editmode_toggle()
+			bpy.ops.font.delete()
+			bpy.ops.font.text_insert(text = sText)
+			bpy.ops.object.editmode_toggle()
+			def ChangeSequencesFile (sScene, sSequence, sFile):
+			if bpy.context.screen.scene != bpy.data.scenes[sScene]:
+			bpy.context.screen.scene = bpy.data.scenes[sScene]
+			bpy.context.scene.sequence_editor.sequences_all[sSequence].filepath = sFile
+
+			def CopyBackwards (sPathFrom, sPathTo):
+			aFiles = sorted(os.listdir(sPathFrom))
+			nI = len(aFiles)
+			try:
+			for sFile in aFiles:
+			nI -= 1
+			shutil.copy(os.path.join(sPathFrom, sFile), os.path.join(sPathTo, aFiles[nI]))
+			except Exception as ex:
+			print(ex)
+			def CopyMaxFile (sPathFrom, sPathTo):
+			sMaxFile = max(os.listdir(sPathFrom))
+			try:
+			shutil.copy(os.path.join(sPathFrom, sMaxFile), os.path.join(sPathTo, sMaxFile))
+			except Exception as ex:
+			print(ex)
+			def DoPNGRender(sScene, sPath = None, nStart = -1, nEnd = -1, sScenesSequenceName = None):
+			bpy.context.screen.scene = bpy.data.scenes[sScene]
+			if (None != sPath):
+			bpy.context.scene.render.filepath = sPath
+			if (0 &lt;= nStart):
+			bpy.context.scene.frame_start = nStart
+			if (0 &lt;= nEnd):
+			bpy.context.scene.frame_end = nEnd
+			if (None != sScenesSequenceName):
+			bpy.context.scene.sequence_editor.sequences_all[sScenesSequenceName].frame_start = nStart
+			bpy.context.scene.render.image_settings.file_format = 'PNG'
+			bpy.context.scene.render.image_settings.color_mode = 'RGBA'
+			bpy.ops.render.render(animation = True)
+
+			def ClearFolder(sPath):
+			if os.path.exists(sPath):
+			for sFile in os.listdir(sPath):
+			os.unlink(os.path.join(sPath, sFile))
+
+			def MakeBottom():
+			if not os.path.exists(sPathBottomIn):
+			os.makedirs(sPathBottomIn)
+			if not os.path.exists(sPathBottomLoop):
+			os.makedirs(sPathBottomLoop)
+			if not os.path.exists(sPathBottomOut):
+			os.makedirs(sPathBottomOut)
+
+			ChangeSequencesFile('scene_bottom', "bot_in", "//\\" + sMovieForBottom)
+
+			ChangeTextBox('scene_bottom', 'text_left', sTextLeft)
+			ChangeTextBox('scene_bottom', 'text_right', sTextRight)
+
+			DoPNGRender('scene_bottom', sPathBottomIn)
+
+			CopyMaxFile(sPathBottomIn, sPathBottomLoop)
+			CopyBackwards(sPathBottomIn, sPathBottomOut)
+			def MakeTop():
+			if not os.path.exists(sPathTopIn):
+			os.makedirs(sPathTopIn)
+			if not os.path.exists(sPathTopLoop1):
+			os.makedirs(sPathTopLoop1)
+			if not os.path.exists(sPathTopLoop2):
+			os.makedirs(sPathTopLoop2)
+			if not os.path.exists(sPathTopSwitch1):
+			os.makedirs(sPathTopSwitch1)
+			if not os.path.exists(sPathTopSwitch2):
+			os.makedirs(sPathTopSwitch2)
+			if not os.path.exists(sPathTopOut):
+			os.makedirs(sPathTopOut)
+
+			ChangeSequencesFile('scene_top', "top_in", "//\\" + sMovieForTop)
+
+			ChangeTextBox('scene_top', 'line_1', aTexts[0])
+			ChangeTextBox('scene_top', 'line_2_L', aTexts[1])
+			ChangeTextBox('scene_top', 'line_2_M', aTexts[2])
+			ChangeTextBox('scene_top', 'line_2_R', aTexts[3])
+			nStart = 1
+			nEnd = 16
+			DoPNGRender('scene_top', sPathTopIn, nStart, nEnd, "seq_scene_top")
+			ClearFolder(sPathTopLoop1)
+			CopyMaxFile(sPathTopIn, sPathTopLoop1)
+			CopyBackwards(sPathTopIn, sPathTopOut)
+
+			nStart = 21
+			nEnd = 35
+			DoPNGRender('scene_top', sPathTopSwitch1, nStart, nEnd, "seq_scene_top")
+			ClearFolder(sPathTopLoop2)
+			CopyMaxFile(sPathTopSwitch1, sPathTopLoop2)
+
+			nStart = 41
+			nEnd = 55
+			DoPNGRender('scene_top', sPathTopSwitch2, nStart, nEnd,  "seq_scene_top")
+			def MakeImageLeft():
+			if not os.path.exists(sPathImagesLIn):
+			os.makedirs(sPathImagesLIn)
+			if not os.path.exists(sPathImagesLLoop):
+			os.makedirs(sPathImagesLLoop)
+			if not os.path.exists(sPathImagesLOut):
+			os.makedirs(sPathImagesLOut)
+
+			bpy.data.images["image_left"].filepath = sImageFolder + sFileLeft
+			nStart = 1
+			nEnd = 31
+			DoPNGRender('scene_image_L', sPathImagesLIn, nStart, nEnd, "seq_scene_im_l")
+			CopyMaxFile(sPathImagesLIn, sPathImagesLLoop)
+
+			nStart = 39
+			nEnd = 54
+			DoPNGRender('scene_image_L', sPathImagesLOut, nStart, nEnd, "seq_scene_im_l")
+			def MakeImageRight():
+			if not os.path.exists(sPathImagesRIn):
+			os.makedirs(sPathImagesRIn)
+			if not os.path.exists(sPathImagesRLoop):
+			os.makedirs(sPathImagesRLoop)
+			if not os.path.exists(sPathImagesROut):
+			os.makedirs(sPathImagesROut)
+
+			bpy.data.images["image_right"].filepath = sImageFolder + sFileRight
+			nStart = 1
+			nEnd = 31
+			DoPNGRender('scene_image_R', sPathImagesRIn, nStart, nEnd, "seq_scene_im_r")
+			CopyMaxFile(sPathImagesRIn, sPathImagesRLoop)
+
+			nStart = 39
+			nEnd = 54
+			DoPNGRender('scene_image_R', sPathImagesROut, nStart, nEnd, "seq_scene_im_r")
+
+			#__________________________
+			Init()
+			MakeBottom()
+			MakeTop()
+			MakeImageLeft()
+			MakeImageRight()
+		</mat>
+		<votes blend="votes.blend" threads="16">
+			import bpy
+			import os
+			import shutil
+
+			sPath = "{%_PATH_%}"
+			sTextVotesLeft = "{%_TEXT_VOTES_LEFT_%}"
+			sTextVotesRight = "{%_TEXT_VOTES_RIGHT_%}"
+
+			sTextNewVotesLeft = "{%_TEXT_NEW_VOTES_LEFT_%}"
+			sTextNewVotesRight = "{%_TEXT_NEW_VOTES_RIGHT_%}"
+
+			# Test values
+			#sPath = "d:/tmp/test/"
+			#sTextVotesLeft = "92788"
+			#sTextVotesRight = "12394"
+
+			#sTextNewVotesLeft = "94322"
+			#sTextNewVotesRight = "25933"
+			# end
+
+			def Init():
+			global sTextVotesLeft, sTextVotesRight
+			if sTextNewVotesLeft == 0 and sTextNewVotesRight == 0:
+			sTextVotesLeft = 0
+			sTextVotesRight = 0
+			global sTextPercentsLeft, sTextPercentsRight, sTextNewPercentsLeft, sTextNewPercentsRight
+			if sTextVotesLeft == "0":
+			sTextPercentsLeft = "0.0%"
+			if sTextVotesRight == "0":
+			sTextPercentsRight = "0.0%"
+			if sTextNewVotesLeft == "0":
+			sTextNewPercentsLeft = "0.0%"
+			if sTextNewVotesRight == "0":
+			sTextNewPercentsRight = "0.0%"
+			nSum = (float(sTextVotesLeft) + float(sTextVotesRight))
+			if not sTextVotesLeft.startswith("{%") and not sTextVotesRight.startswith("{%") and nSum > 0:
+			sTextPercentsLeft = ("%.1f" % (float(sTextVotesLeft) * 100 / nSum)) + "%"
+			sTextPercentsRight = ("%.1f" % (float(sTextVotesRight) * 100/ nSum)) + "%"
+			nSum = (float(sTextNewVotesLeft) + float(sTextNewVotesRight))
+			if not sTextNewVotesLeft.startswith("{%") and not sTextNewVotesRight.startswith("{%") and nSum > 0:
+			sTextNewPercentsLeft = ("%.1f" % (float(sTextNewVotesLeft) * 100/ nSum)) + "%"
+			sTextNewPercentsRight = ("%.1f" % (float(sTextNewVotesRight) * 100/ nSum)) + "%"
+			global sMovieForMid
+			sMovieForMid = "mid_switch.mov"
+			global sPathMidIn, sPathMidInTMP, sPathMidLoop1, sPathMidLoop2, sPathMidSwitch1, sPathMidSwitch2, sPathMidOut
+			sPathMidIn = os.path.join(sPath, "voting_mid_in/")
+			sPathMidInTMP = os.path.join(sPath, "!voting_mid_in/")
+			sPathMidLoop1 = os.path.join(sPath, "voting_mid_loop1/")
+			sPathMidSwitch1 = os.path.join(sPath, "voting_mid_switch1/")
+			sPathMidLoop2 = os.path.join(sPath, "voting_mid_loop2/")
+			sPathMidSwitch2 = os.path.join(sPath, "voting_mid_switch2/")
+			sPathMidOut = os.path.join(sPath, "voting_mid_out/")
+			global sPathTMP_OldPercentsToNewVotesSwitch, sPathTMP_NewVotesLoop, sPathTMP_NewPercentsToNewVotesSwitch, sPathTMP_NewVotesToNewPercentsSwitch, sPathTMP_NewPercentsLoop
+			sPathTMP_OldPercentsToNewVotesSwitch = os.path.join(sPath, "!old_percents__new_votes/")
+			sPathTMP_NewVotesLoop = os.path.join(sPath, "!new_votes_loop/")
+			sPathTMP_NewPercentsToNewVotesSwitch = os.path.join(sPath, "!new_percents__new_votes/")
+			sPathTMP_NewVotesToNewPercentsSwitch = os.path.join(sPath, "!new_votes__new_percents/")
+			sPathTMP_NewPercentsLoop = os.path.join(sPath, "!new_percents_loop/")
+
+			if not os.path.exists(sPathMidIn):
+			os.makedirs(sPathMidIn)
+			if not os.path.exists(sPathMidLoop1):
+			os.makedirs(sPathMidLoop1)
+			if not os.path.exists(sPathMidLoop2):
+			os.makedirs(sPathMidLoop2)
+			if not os.path.exists(sPathMidSwitch1):
+			os.makedirs(sPathMidSwitch1)
+			if not os.path.exists(sPathMidSwitch2):
+			os.makedirs(sPathMidSwitch2)
+			if not os.path.exists(sPathMidOut):
+			os.makedirs(sPathMidOut)
+
+			if not os.path.exists(sPathTMP_OldPercentsToNewVotesSwitch):
+			os.makedirs(sPathTMP_OldPercentsToNewVotesSwitch)
+			if not os.path.exists(sPathTMP_NewVotesLoop):
+			os.makedirs(sPathTMP_NewVotesLoop)
+			if not os.path.exists(sPathTMP_NewPercentsToNewVotesSwitch):
+			os.makedirs(sPathTMP_NewPercentsToNewVotesSwitch)
+			if not os.path.exists(sPathTMP_NewVotesToNewPercentsSwitch):
+			os.makedirs(sPathTMP_NewVotesToNewPercentsSwitch)
+			if not os.path.exists(sPathTMP_NewPercentsLoop):
+			os.makedirs(sPathTMP_NewPercentsLoop)
+			if not os.path.exists(sPathMidInTMP):
+			os.makedirs(sPathMidInTMP)
+
+			def ChangeTextBox (sScene, sTextBox, sText):
+			if bpy.context.screen.scene != bpy.data.scenes[sScene]:
+			bpy.context.screen.scene = bpy.data.scenes[sScene]
+			bpy.context.scene.objects.active = bpy.context.scene.objects[sTextBox]
+			bpy.ops.object.editmode_toggle()
+			bpy.ops.font.delete()
+			bpy.ops.font.text_insert(text = sText)
+			bpy.ops.object.editmode_toggle()
+			def ChangeSequencesFile (sScene, sSequence, sFile):
+			if bpy.context.screen.scene != bpy.data.scenes[sScene]:
+			bpy.context.screen.scene = bpy.data.scenes[sScene]
+			bpy.context.scene.sequence_editor.sequences_all[sSequence].filepath = sFile
+
+			def CopyBackwards (sPathFrom, sPathTo):
+			aFiles = sorted(os.listdir(sPathFrom))
+			nI = len(aFiles)
+			try:
+			for sFile in aFiles:
+			nI -= 1
+			shutil.copy(os.path.join(sPathFrom, sFile), os.path.join(sPathTo, aFiles[nI]))
+			except Exception as ex:
+			print(ex)
+			def CopyMaxFile (sPathFrom, sPathTo):
+			sMaxFile = max(os.listdir(sPathFrom))
+			try:
+			shutil.copy(os.path.join(sPathFrom, sMaxFile), os.path.join(sPathTo, sMaxFile))
+			except Exception as ex:
+			print(ex)
+			def DoPNGRender(sScene, sPath = None, nStart = -1, nEnd = -1, sScenesSequenceName = None):
+			bpy.context.screen.scene = bpy.data.scenes[sScene]
+			if (None != sPath):
+			bpy.context.scene.render.filepath = sPath
+			if (0 &lt;= nStart):
+			bpy.context.scene.frame_start = nStart
+			if (0 &lt;= nEnd):
+			bpy.context.scene.frame_end = nEnd
+			if (None != sScenesSequenceName):
+			bpy.context.scene.sequence_editor.sequences_all[sScenesSequenceName].frame_start = nStart
+			bpy.context.scene.render.image_settings.file_format = 'PNG'
+			bpy.context.scene.render.image_settings.color_mode = 'RGBA'
+			bpy.ops.render.render(animation = True)
+
+			def ClearFolder(sPath):
+			if os.path.exists(sPath):
+			for sFile in os.listdir(sPath):
+			os.unlink(os.path.join(sPath, sFile))
+
+			def MakeMidIntro():
+			ChangeSequencesFile('scene_mid', "mid_switch", "//\\" + sMovieForMid)
+
+			nStart = 2
+			nEnd = 13
+			ChangeTextBox('scene_mid', 'votes1_left', sTextVotesLeft)
+			ChangeTextBox('scene_mid', 'votes1_right', sTextVotesRight)
+			DoPNGRender('scene_mid', sPathMidIn, nStart, nEnd, "seq_scene_mid")
+			ClearFolder(sPathMidLoop1)
+			CopyMaxFile(sPathMidIn, sPathMidLoop1)
+			def MakeMidSwitch(sText1L, sText1R, sText2L, sText2R, sPathSWITCH, sPathLOOP):
+			nStart = 31
+			nEnd = 40
+			ChangeTextBox('scene_mid', 'votes1_left', sText1L)
+			ChangeTextBox('scene_mid', 'votes1_right', sText1R)
+			ChangeTextBox('scene_mid', 'votes2_left', sText2L)
+			ChangeTextBox('scene_mid', 'votes2_right', sText2R)
+			DoPNGRender('scene_mid', sPathSWITCH, nStart, nEnd, "seq_scene_mid")
+			if sPathLOOP != None:
+			ClearFolder(sPathLOOP)
+			CopyMaxFile(sPathSWITCH, sPathLOOP)
+			def MakeMidOutro():
+			nStart = 2
+			nEnd = 13
+			ChangeTextBox('scene_mid', 'votes1_left', sTextPercentsLeft)
+			ChangeTextBox('scene_mid', 'votes1_right', sTextPercentsRight)
+			DoPNGRender('scene_mid', sPathMidInTMP, nStart, nEnd, "seq_scene_mid")
+			CopyBackwards(sPathMidInTMP, sPathMidOut)
+
+			#-------------------------
+			Init()
+
+			if sTextNewVotesLeft == sTextVotesLeft and sTextNewVotesRight == sTextVotesRight:
+			MakeMidIntro()
+			MakeMidSwitch(sTextVotesLeft, sTextVotesRight, sTextPercentsLeft, sTextPercentsRight, sPathMidSwitch1, sPathMidLoop2)
+			MakeMidSwitch(sTextPercentsLeft, sTextPercentsRight, sTextVotesLeft, sTextVotesRight, sPathMidSwitch2, None)
+			else:
+			MakeMidSwitch(sTextPercentsLeft, sTextPercentsRight, sTextNewVotesLeft, sTextNewVotesRight, sPathTMP_OldPercentsToNewVotesSwitch, sPathTMP_NewVotesLoop)
+			MakeMidSwitch(sTextNewVotesLeft, sTextNewVotesRight, sTextNewPercentsLeft, sTextNewPercentsRight, sPathTMP_NewVotesToNewPercentsSwitch, sPathTMP_NewPercentsLoop)
+			MakeMidSwitch(sTextNewPercentsLeft, sTextNewPercentsRight, sTextNewVotesLeft, sTextNewVotesRight, sPathTMP_NewPercentsToNewVotesSwitch, None)
+			MakeMidOutro()
+		</votes>
+	</blender>
+	<polls>
+		<poll name="POLL">
+			<description>
+				POLL DESCRIPTION TEXT LINE1
+				POLL DESCRIPTION TEXT LINE2
+				POLL DESCRIPTION TEXT LINEN
+			</description>
+			<candidate name="OPTION1" image="image1.jpg" description="OPTION1 DESCRIPTION TEXT" />
+			<candidate name="OPTION2" image="image2.jpg" description="OPTION2 DESCRIPTION TEXT" />
+		</poll>
+	</polls>
+</preferences>

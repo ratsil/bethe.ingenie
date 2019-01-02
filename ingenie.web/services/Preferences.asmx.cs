@@ -18,7 +18,14 @@ namespace ingenie.web.services
 	// [System.Web.Script.Services.ScriptService]
 	public class Preferences : System.Web.Services.WebService
 	{
-		public DateTime dtReload
+        private class Logger : lib.Logger
+        {
+            public Logger()
+                : base("preferences")
+            {
+            }
+        }
+        public DateTime dtReload
 		{
 			get
 			{
@@ -33,25 +40,39 @@ namespace ingenie.web.services
 		}
 
 		[WebMethod(EnableSession = true)]
-		public ingenie.web.Preferences.Clients.SCR SCRGet()
-		{
-			if (1 < DateTime.Now.Subtract(dtReload).TotalMinutes)
-			{
-				ingenie.web.Preferences.Reload();
-				dtReload = DateTime.Now;
-			}
-			return ingenie.web.Preferences.cClientReplica;
-		}
+        public ingenie.web.Preferences.Clients.SCR SCRGet()
+        {
+            try
+            {
+                if (1 < DateTime.Now.Subtract(dtReload).TotalMinutes)
+                {
+                    ingenie.web.Preferences.Reload();
+                    dtReload = DateTime.Now;
+                }
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
+            return ingenie.web.Preferences.cClientReplica;
+        }
 
-		[WebMethod(EnableSession = true)]
-		public ingenie.web.Preferences.Clients.Presentation PresentationGet()
-		{
-			if (1 < DateTime.Now.Subtract(dtReload).TotalMinutes)
-			{
-				ingenie.web.Preferences.Reload();
-				dtReload = DateTime.Now;
-			}
-			return ingenie.web.Preferences.cClientPresentation;
-		}
-	}
+        [WebMethod(EnableSession = true)]
+        public ingenie.web.Preferences.Clients.Presentation PresentationGet()
+        {
+            try
+            {
+                if (1 < DateTime.Now.Subtract(dtReload).TotalMinutes)
+                {
+                    ingenie.web.Preferences.Reload();
+                    dtReload = DateTime.Now;
+                }
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
+            return ingenie.web.Preferences.cClientPresentation;
+        }
+    }
 }

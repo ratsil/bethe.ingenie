@@ -11,7 +11,10 @@ namespace ingenie.server
         private object oEventsLocker;
         private object oContainerEventsLocker;
         public object oEffect;
-        public string sType;
+        private object oLock;
+        private bool bDisposed;
+		public EffectCover cEffectParrent;
+		public string sType;
         public string sInfo;
         public BTL.EffectStatus eStatus
         {
@@ -49,15 +52,67 @@ namespace ingenie.server
                 return dtRetVal;
             }
         }
+        public int nEffectHashCode
+        {
+            get
+            {
+                if (null == oEffect)
+                    return -1;
+                if (oEffect is BTL.Play.Effect)
+                    return ((BTL.Play.Effect)oEffect).nID;
+                return oEffect.GetHashCode();
+            }
+        }
         public EffectCover(object cEffect)
         {
-			(new Logger()).WriteDebug2("effect:cover:create [hc:" + GetHashCode() + "][effect:" + cEffect.GetHashCode() + "][type:" + cEffect.GetType() + "]");
-
             oEffect = cEffect;
+            (new Logger()).WriteDebug2("effect:cover:create [hc:" + GetHashCode() + "][effect:" + nEffectHashCode + "][type:" + cEffect.GetType() + "]");
             oEventsLocker = new object();
             oContainerEventsLocker = new object();
+            oLock = new object();
+            bDisposed = false;
             if (cEffect is BTL.Play.Effect)
             {
+                if (cEffect is BTL.Play.Animation)
+                {
+                    this.sType = "animation";
+                    this.sInfo = ((BTL.Play.Animation)cEffect).sFolder;
+                }
+                else if (cEffect is BTL.Play.Audio)
+                {
+                    this.sType = "audio";
+                    this.sInfo = ((BTL.Play.Audio)cEffect).sFile;
+                }
+                else if (cEffect is BTL.Play.Clock)
+                {
+                    this.sType = "clock";
+                    this.sInfo = ((BTL.Play.Clock)cEffect).sText;
+                }
+                else if (cEffect is BTL.Play.Text)
+                {
+                    this.sType = "text";
+                    this.sInfo = ((BTL.Play.Text)cEffect).sText;
+                }
+                else if (cEffect is BTL.Play.Video)
+                {
+                    this.sType = "video";
+                    this.sInfo = ((BTL.Play.Video)cEffect).sFile;
+                }
+                else if (cEffect is BTL.Play.Composite)
+                {
+                    this.sType = "composite";
+                    this.sInfo = "x=" + ((BTL.Play.Composite)cEffect).stArea.nLeft + ", y=" + ((BTL.Play.Composite)cEffect).stArea.nTop;
+                }
+                else if (cEffect is BTL.Play.Playlist)
+                {
+                    this.sType = "playlist";
+                    this.sInfo = "x=" + ((BTL.Play.Playlist)cEffect).cDock.cOffset.nLeft + ", y=" + ((BTL.Play.Playlist)cEffect).cDock.cOffset.nTop;
+                }
+                else if (cEffect is BTL.Play.Roll)
+                {
+                    this.sType = "roll";
+                    this.sInfo = "x=" + ((BTL.Play.Roll)cEffect).stArea.nLeft + ", y=" + ((BTL.Play.Roll)cEffect).stArea.nTop;
+                }
                 BTL.Play.Effect cEffectBTL = (BTL.Play.Effect)cEffect;
                 cEffectBTL.Prepared += new BTL.Play.Effect.EventDelegate(OnEffectPrepared);
                 cEffectBTL.Started += new BTL.Play.Effect.EventDelegate(OnEffectStarted);
@@ -92,11 +147,14 @@ namespace ingenie.server
             else if (cEffect is Plugin)
             {
                 Plugin cPlugin = (Plugin)cEffect;
+                this.sType = "Plugin";
+                this.sInfo = cPlugin.sFile;
                 cPlugin.Prepared += new plugins.EventDelegate(OnEffectPrepared);
                 cPlugin.Started += new plugins.EventDelegate(OnEffectStarted);
                 cPlugin.Stopped += new plugins.EventDelegate(OnEffectStopped);
             }
             else throw new Exception("ec: неизвестный тип эффекта [hc:" + cEffect.GetHashCode() + "]"); //TODO LANG
+            (new Logger()).WriteNotice("effect created: [hc:" + this.GetHashCode() + "][name:" + this.sType + "][info:" + this.sInfo + "][status:" + this.eStatus + "]");
         }
 
         public bool StatusIsOlderThen(int nSeconds)
@@ -106,14 +164,16 @@ namespace ingenie.server
                     return true;
             return false;
         }
-        public bool StatusIsOlderThen(BTL.EffectStatus eStat, int nSeconds)
-        {
-            lock (oEffect)
-                if (eStatus == eStat && dtStatusChanged.AddSeconds(nSeconds) < DateTime.Now)
-                    return true;
-            return false;
-        }
-        private void OnEffectPrepared(object cSender)
+		public bool StatusIsOlderThen(BTL.EffectStatus eStat, int nSeconds)
+		{
+			lock (oEffect)
+				if (cEffectParrent != null && (eStat == BTL.EffectStatus.Preparing || eStat == BTL.EffectStatus.Idle) && (cEffectParrent.eStatus == BTL.EffectStatus.Preparing || cEffectParrent.eStatus == BTL.EffectStatus.Running))
+					return false;
+			if (eStatus == eStat && dtStatusChanged.AddSeconds(nSeconds) < DateTime.Now)
+				return true;
+			return false;
+		}
+		private void OnEffectPrepared(object cSender)
         {
             lock (oEventsLocker)
             {
@@ -183,6 +243,7 @@ namespace ingenie.server
 
         public void Prepare()
         {
+            (new Logger()).WriteNotice("effect preparing: [hc:" + this.GetHashCode() + "][name:" + this.sType + "][info:" + this.sInfo + "][status:" + this.eStatus + "]");
             if (oEffect is BTL.Play.Effect)
             {
                 ((BTL.Play.Effect)oEffect).Prepare();
@@ -191,6 +252,7 @@ namespace ingenie.server
             {
                 ((Plugin)oEffect).Prepare();
             }
+            (new Logger()).WriteNotice("effect prepared: [hc:" + this.GetHashCode() + "][name:" + this.sType + "][info:" + this.sInfo + "][status:" + this.eStatus + "]");
         }
         public void Start()
         {
@@ -202,6 +264,7 @@ namespace ingenie.server
             {
                 ((Plugin)oEffect).Start();
             }
+            (new Logger()).WriteNotice("effect started: [hc:" + this.GetHashCode() + "][name:" + this.sType + "][info:" + this.sInfo + "][status:" + this.eStatus + "]");
         }
         public void Stop()
         {
@@ -213,6 +276,7 @@ namespace ingenie.server
             {
                 ((Plugin)oEffect).Stop();
             }
+            (new Logger()).WriteNotice("effect stopped: [hc:" + this.GetHashCode() + "][name:" + this.sType + "][info:" + this.sInfo + "][status:" + this.eStatus + "]");
         }
         public void Idle()
         {
@@ -224,10 +288,16 @@ namespace ingenie.server
             {
                 // ????
             }
+            (new Logger()).WriteNotice("effect idled: [hc:" + this.GetHashCode() + "][name:" + this.sType + "][info:" + this.sInfo + "][status:" + this.eStatus + "]");
         }
         public void Dispose()
         {
-            int nHash = this.GetHashCode();
+            lock (oLock)
+            {
+                if (bDisposed)
+                    return;
+                bDisposed = true;
+            }
             if (null == oEffect)
             {
                 (new Logger()).WriteNotice("program.cs:EffectCover:Dispose [hash this: " + this.GetHashCode() + "]");
@@ -288,6 +358,7 @@ namespace ingenie.server
                 cPlugin.Dispose();
             }
             //(new Logger()).WriteNotice("program.cs:EffectCover:Dispose: part9 [hash this: " + nHash + "]");
+            (new Logger()).WriteNotice("effect disposed: [hc:" + this.GetHashCode() + "][name:" + this.sType + "][info:" + this.sInfo + "][status:" + this.eStatus + "]");
         }
     }
 }

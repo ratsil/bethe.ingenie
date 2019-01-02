@@ -18,8 +18,13 @@ namespace ingenie.shared
 				return _cInstance._nPort;
 			}
 		}
+        static public void Reload()
+        {
+            _cInstance = new Preferences();
+        }
 
-		private int _nPort;
+
+        private int _nPort;
 
 		public Preferences()
 			: base("//ingenie/shared")

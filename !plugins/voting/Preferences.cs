@@ -17,193 +17,301 @@ namespace ingenie.plugins
     {
 		public class Poll
 		{
-			public class Candidate
+            public int nMidGap;
+            public string sOuterXMLMidRoll;
+            public class Candidate
 			{
 				public string sName;
 				public string sImage;
 				public string sDescription;
-				public uint nVotesQty;
-			}
-			private int _nID = x.ToInt(null);
-
-			public int nID
-			{
-				get
-				{
-					if(x.ToInt(null) == _nID)
-						_nID = (sDescription + aCandidates.Select(o => o.sName + o.sImage + o.sDescription).Aggregate((r, o) => r += o)).GetHashCode();
-					return _nID;
-				}
-			}
-			public string sName;
+                private int _nVotesQtyNew;
+                private int _nVotesQtyOld;
+                public int nVotesQtyOld
+                {
+                    get
+                    {
+                        return _nVotesQtyOld;
+                    }
+                }
+                public int nVotesQtyNew
+                {
+                    get
+                    {
+                        return _nVotesQtyNew;
+                    }
+                    set
+                    {
+                        _nVotesQtyOld = _nVotesQtyNew;
+                        _nVotesQtyNew = value;
+                    }
+                }
+                public Candidate(XmlNode cNode)
+                {
+                    sName = cNode.AttributeValueGet("name").ToLower();
+                    sImage = cNode.AttributeValueGet("image");
+                    sDescription = cNode.AttributeValueGet("description");
+                    _nVotesQtyOld = -1;
+                    _nVotesQtyNew = -1;
+                }
+            }
+            public string sName;
 			public DateTime dtLast;
 			public Candidate[] aCandidates;
-			public string sDescription;
-		}
-	
-		static private List<Poll> _aPollsPreparing = new List<Poll>();
+			public string[] aDescription;
+            public string[] aVotesNew
+            {
+                get
+                {
+                    if (aCandidates[0].nVotesQtyNew < 0 || aCandidates[1].nVotesQtyNew < 0)
+                        return new string[2] { "", "" };
+                    float nSum = aCandidates[0].nVotesQtyNew + aCandidates[1].nVotesQtyNew;
+                    return new string[2] { (nSum == 0 ? 0 : (aCandidates[0].nVotesQtyNew * 100f / nSum)).ToString("0.0") + "%", (nSum == 0 ? 0 : (aCandidates[1].nVotesQtyNew * 100f / nSum)).ToString("0.0") + "%" };
+                }
+            }
+            public string[] aVotesOld
+            {
+                get
+                {
+                    if (aCandidates[0].nVotesQtyOld < 0 || aCandidates[1].nVotesQtyOld < 0)
+                        return new string[2] { "", "" };
+                    float nSum = aCandidates[0].nVotesQtyOld + aCandidates[1].nVotesQtyOld;
+                    return new string[2] { (aCandidates[0].nVotesQtyOld * 100f / nSum).ToString("0.0") + "%", (aCandidates[1].nVotesQtyOld * 100f / nSum).ToString("0.0") + "%" };
+                }
+            }
+            public btl.Roll NewRollMidGet()
+            {
+                XmlDocument cXmlDocument = new XmlDocument();
+                string[] aOld = aVotesOld, aNew = aVotesNew;
+                string sOuterXML = sOuterXMLMidRoll.Replace("%%MID_TXT_L_OLD%%", aOld[0]);
+                sOuterXML = sOuterXML.Replace("%%MID_TXT_R_OLD%%", aOld[1]);
+                sOuterXML = sOuterXML.Replace("%%MID_TXT_L_NEW%%", aNew[0]);
+                sOuterXML = sOuterXML.Replace("%%MID_TXT_R_NEW%%", aNew[1]);
+                cXmlDocument.LoadXml("<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n" + sOuterXML);
+                List<XmlNode> aToDelete = new List<XmlNode>();
+                XmlNode cXmlEff = cXmlDocument.NodeGet("roll/effects");
+                foreach (XmlNode cXml in cXmlEff.ChildNodes)
+                {
+                    switch (cXml.AttributeValueGet("name"))
+                    {
+                        case "mid_left_old":
+                            if (aOld[0] == "")
+                                aToDelete.Add(cXml);
+                            break;
+                        case "mid_right_old":
+                            if (aOld[1] == "")
+                                aToDelete.Add(cXml);
+                            break;
+                        case "mid_left_new":
+                            if (aNew[0] == "")
+                                aToDelete.Add(cXml);
+                            break;
+                        case "mid_right_new":
+                            if (aNew[1] == "")
+                                aToDelete.Add(cXml);
+                            break;
+                    }
+                }
+                foreach (XmlNode cXml in aToDelete)
+                    cXmlEff.RemoveChild(cXml);
+                Roll cRetVal= new Roll(cXmlDocument.NodeGet("roll"));
+                Text cMLeftO = (Text)cRetVal.EffectGet("mid_left_old");
+                Text cMLeftN = (Text)cRetVal.EffectGet("mid_left_new");
+                Text cMRightO = (Text)cRetVal.EffectGet("mid_right_old");
+                Text cMRightN = (Text)cRetVal.EffectGet("mid_right_new");
+                int nWL = (cRetVal.stArea.nWidth - nMidGap) / 2;
+                if (null != cMLeftO)
+                    cMLeftO.cDock.cOffset.nLeft += (short)((nWL - cMLeftO.stArea.nWidth) / 2);
+                cMLeftN.cDock.cOffset.nLeft += (short)((nWL - cMLeftN.stArea.nWidth) / 2);
+                if (null != cMRightO)
+                    cMRightO.cDock.cOffset.nLeft += (short)(nWL + nMidGap + (nWL - cMRightO.stArea.nWidth) / 2);
+                cMRightN.cDock.cOffset.nLeft += (short)(nWL + nMidGap + (nWL - cMRightN.stArea.nWidth) / 2);
+                return cRetVal;
+            }
+            public Poll(XmlNode cNode)
+            {
+                sName = cNode.AttributeValueGet("name", false);
+                dtLast = cNode.AttributeOrDefaultGet<DateTime>("dt", DateTime.MinValue);
 
-		public short nLeft { get; private set; }
-		public short nTop { get; private set; }
-		public bool bCUDA { get; private set; }
-		public ushort nLayer { get; private set; }
-		public string sFolderBlender { get; private set; }
-		public string sFolderMat { get; private set; }
-		public string sFolderVotes { get; private set; }
-		public XmlNode cMat { get; private set; }
-		public XmlNode cVotes { get; private set; }
+                aDescription = cNode.NodeGet("description").InnerText.Remove("\r").Split('\n').Select(o => o.Trim()).Where(o => !o.IsNullOrEmpty()).ToArray();
+                if (aDescription.Length < 4)
+                    throw new Exception("there are only [count=" + aDescription.Length + "] strings in description! Must be 4");
+                else if (aDescription.Length > 4)
+                    throw new Exception("there are too many [count=" + aDescription.Length + "] strings in description! Must be 4");
 
-		public Poll cPoll
-		{
-			get
-			{
-				return _cPoll;
-			}
-		}
+                aCandidates = cNode.NodesGet("candidate").Select(o => new Candidate(o)).ToArray();
+                if (aCandidates.Length < 2)
+                    throw new Exception("there are only [count=" + aCandidates.Length + "] candidates! Must be 2");
+                else if (aCandidates.Length > 2)
+                    throw new Exception("there are too many [count=" + aCandidates.Length + "] candidates! Must be 2");
+            }
+            public bool IsVotesPercentageChanged(int nLeft, int nRight)
+            {
+                float nSum = nLeft + nRight;
+                string sLeft = (nLeft * 100f / nSum).ToString("0.0") + "%";
+                string sRight = (nRight * 100f / nSum).ToString("0.0") + "%";
+                string[] aVotesCurrent = aVotesNew;
+                return sLeft != aVotesCurrent[0] || sRight != aVotesCurrent[1];
+            }
+        }
 
-		private string _sWorkFolder;
-		private string _sFolderFootages;
-		private string _sFolderPoll;
+        public Poll cPoll { get { return _cPoll; } }
+        public TimeSpan tsUpdateInterval { get { return _tsUpdateInterval; } }
+        public int nRollPrerenderQueueMax { get { return _nRollPrerenderQueueMax; } }
+        public btl.Roll cRollImages { get { return _cRollImages; } }
+        public btl.Roll cRollTop { get { return _cRollTop; } }
+        public btl.Roll cRollBot { get { return _cRollBot; } }
+        public btl.Roll cRollMid { get { return _cRollMid; } }
+        public int nImagesLoopDur { get { return _nImagesLoopDur; } }
+        public int nImagesInterval { get { return _nImagesInterval; } }
+        public int nTopLoopDur { get { return _nTopLoopDur; } }
+        public int nBotBlueWindowWidth { get { return _nBotBlueWindowWidth; } }
+
+        public btl.Roll _cRollImages;
+        public btl.Roll _cRollTop;
+        public btl.Roll _cRollBot;
+        public btl.Roll _cRollMid;
+        private string _sWorkFolder;
 		private Poll _cPoll;
+        private string _sRequest;
+        private byte _nTemplate;
+        private TimeSpan _tsUpdateInterval;
+        private int _nRollPrerenderQueueMax;
+        private int _nTextInTopGap;
+        private int _nTopLoopDur;
+        private int _nImagesLoopDur;
+        private int _nImagesInterval;
+        private int _nBotBlueWindowWidth;
+        private Dock.Offset _cGlobalOffset;
 
-		public Preferences(string sWorkFolder, string sData)
+        public Preferences(string sData)
         {
-			nTop = nLeft = 0;
-			bCUDA = true;
-			if (!Directory.Exists(_sFolderFootages = Path.Combine(_sWorkFolder = sWorkFolder, "footages")))
-				Directory.CreateDirectory(_sFolderFootages);
-			if (!Directory.Exists(_sFolderPoll = Path.Combine(_sFolderFootages, "polls")))
-				Directory.CreateDirectory(_sFolderPoll);
+            try
+            {
+                XmlDocument cXmlDocument = new XmlDocument();
+                cXmlDocument.LoadXml(sData);
+                XmlNode cXmlNode = cXmlDocument.NodeGet("data");
+                _sRequest = cXmlNode.AttributeOrDefaultGet<string>("request", "polls.zed");
+                _nTemplate = cXmlNode.AttributeOrDefaultGet<byte>("template", 0);
+                _sWorkFolder = cXmlNode.AttributeGet<string>("work_folder");
+                if (!System.IO.Directory.Exists(_sWorkFolder))
+                    throw new Exception("work foldeer doesn't exist! [folder=" + _sWorkFolder + "]");
+                _tsUpdateInterval = cXmlNode.AttributeOrDefaultGet<TimeSpan>("update_interval", new TimeSpan(0, 0, 10));
+                _nRollPrerenderQueueMax = cXmlNode.AttributeOrDefaultGet<int>("render_queue", 30);
+                _cPoll = new Poll(cXmlNode.NodeGet("poll"));
 
-			XmlDocument cXmlDocument = new XmlDocument();
-			cXmlDocument.Load(Path.Combine(sWorkFolder, "preferences.xml"));
+                _cGlobalOffset = new Dock.Offset(cXmlNode.NodeGet("offset"));
 
-			if(null == (
-				//берем самое старое голосование
-				_cPoll = cXmlDocument.NodesGet("preferences/polls/poll").Select(o => new Poll()
-						{
-							sName = o.AttributeValueGet("name", false),
-							dtLast = o.AttributeGet<DateTime>("dt", false),
-							sDescription = o.NodeGet("description").InnerText,
-							aCandidates = o.NodesGet("candidate").Select(o1 => new Poll.Candidate() {
-								sName = o1.AttributeValueGet("name").ToLower(),
-								sImage = o1.AttributeValueGet("image"),
-								sDescription = o1.AttributeValueGet("description"),
-								nVotesQty = 0
-							}).ToArray()
-						}).Where(o => 1 > _aPollsPreparing.Count(o1 => o1.nID == o.nID)).OrderBy(o => (x.ToDT(null) > o.dtLast ? o.dtLast.Ticks : 0)).FirstOrDefault()
-					?? _aPollsPreparing.OrderBy(o => (x.ToDT(null) > o.dtLast ? o.dtLast.Ticks : 0)).FirstOrDefault()
-			))
-				throw new Exception("no poll specified");
-			XmlNode cXmlNode = cXmlDocument.NodeGet("preferences/blender");
-			sFolderBlender = cXmlNode.AttributeValueGet("folder");
+                string sName, sOuterXML, sHeadXML = "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n";
+                XmlNode cNodeRoll;
+                foreach (XmlNode cNode in cXmlNode.NodesGet("roll"))
+                {
+                    sName = cNode.AttributeValueGet("name");
 
-			XmlDocument cXD = new XmlDocument();
-			XmlAttribute cXA;
+                    cNodeRoll = cNode;
+                    switch (sName)
+                    {
+                        case "images":
+                            cXmlDocument = new XmlDocument();
+                            sOuterXML = cNode.OuterXml.Replace("%%IMG_LEFT%%", System.IO.Path.Combine(_sWorkFolder, _cPoll.aCandidates[0].sImage));
+                            sOuterXML = sOuterXML.Replace("%%IMG_RIGHT%%", System.IO.Path.Combine(_sWorkFolder, _cPoll.aCandidates[1].sImage));
+                            cXmlDocument.LoadXml(sHeadXML + sOuterXML);
+                            cNodeRoll = cXmlDocument.NodeGet("roll");
+                            _nImagesLoopDur = cNodeRoll.AttributeOrDefaultGet<int>("_loop_dur", 75);
+                            _nImagesInterval = cNodeRoll.AttributeOrDefaultGet<int>("_interval", 600);
+                            _cRollImages = new Roll(cNodeRoll);
+                            _cRollImages.stArea = _cRollImages.stArea.Move(_cGlobalOffset);
+                            break;
+                        case "top":
+                            cXmlDocument = new XmlDocument();
+                            sOuterXML = cNode.OuterXml.Replace("%%TOP_TXT1%%", _cPoll.aDescription[0]);
+                            sOuterXML = sOuterXML.Replace("%%TOP_TXT2_1%%", _cPoll.aDescription[1]);
+                            sOuterXML = sOuterXML.Replace("%%TOP_TXT2_2%%", _cPoll.aDescription[2]);
+                            sOuterXML = sOuterXML.Replace("%%TOP_TXT2_3%%", _cPoll.aDescription[3]);
+                            cXmlDocument.LoadXml(sHeadXML + sOuterXML);
+                            cNodeRoll = cXmlDocument.NodeGet("roll");
+                            _nTextInTopGap = cNodeRoll.AttributeOrDefaultGet<int>("_text_in_top_gap", 30);
+                            _nTopLoopDur = cNodeRoll.AttributeOrDefaultGet<int>("_loop_dur", 200);
+                            _cRollTop = new Roll(cNodeRoll);
+                            Text cInit = (Text)_cRollTop.EffectGet("top_init");
+                            cInit.cDock.cOffset.nLeft += (short)((_cRollTop.stArea.nWidth - cInit.stArea.nWidth) / 2);
+                            Text cLeft = (Text)_cRollTop.EffectGet("top_left");
+                            Text cMid = (Text)_cRollTop.EffectGet("top_mid");
+                            Text cRight = (Text)_cRollTop.EffectGet("top_right");
+                            int nWTotal = cLeft.stArea.nWidth + cMid.stArea.nWidth + cRight.stArea.nWidth + 2 * _nTextInTopGap;
+                            short nLeft = (short)((_cRollTop.stArea.nWidth - nWTotal) / 2);
+                            cLeft.cDock.cOffset.nLeft += nLeft;
+                            cMid.cDock.cOffset.nLeft += (short)(nLeft + cLeft.stArea.nWidth + _nTextInTopGap);
+                            cRight.cDock.cOffset.nLeft += (short)(nLeft + cLeft.stArea.nWidth + cMid.stArea.nWidth + 2 * _nTextInTopGap);
+                            _cRollTop.stArea = _cRollTop.stArea.Move(_cGlobalOffset);
+                            break;
+                        case "bot":
+                            cXmlDocument = new XmlDocument();
+                            sOuterXML = cNode.OuterXml.Replace("%%BOT_TXT_L%%", _cPoll.aCandidates[0].sDescription);
+                            sOuterXML = sOuterXML.Replace("%%BOT_TXT_R%%", _cPoll.aCandidates[1].sDescription);
+                            cXmlDocument.LoadXml(sHeadXML + sOuterXML);
+                            cNodeRoll = cXmlDocument.NodeGet("roll");
+                            _nBotBlueWindowWidth = cNodeRoll.AttributeOrDefaultGet<int>("_blue_window_width", 372);
+                            _cRollBot = new Roll(cNodeRoll);
+                            Text cBLeft = (Text)_cRollBot.EffectGet("bot_left");
+                            Text cBRight = (Text)_cRollBot.EffectGet("bot_right");
+                            cBLeft.cDock.cOffset.nLeft += (short)((_nBotBlueWindowWidth - cBLeft.stArea.nWidth) / 2);
+                            cBRight.cDock.cOffset.nLeft += (short)((_nBotBlueWindowWidth - cBRight.stArea.nWidth) / 2);
+                            _cRollBot.stArea = _cRollBot.stArea.Move(_cGlobalOffset);
+                            break;
+                        case "mid":
+                            PollUpdate();
+                            _cPoll.nMidGap = cNode.AttributeOrDefaultGet<int>("_mid_gap", 46);
+                            _cPoll.sOuterXMLMidRoll = cNode.OuterXml;
+                            _cRollMid = _cPoll.NewRollMidGet();
+                            _cRollMid.stArea = _cRollMid.stArea.Move(_cGlobalOffset);
+                            break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteNotice("Preferences error: [error=" + ex.ToString() + "][source_xml=" + sData + "]");
+                throw;
+            }
+        }
 
-
-			XmlNode cXNBlend = cXmlNode.NodeGet("mat");
-			cMat = cXD.CreateElement("data");
-			cXA = cXD.CreateAttribute("effect");
-			cXA.Value = "render";
-			cMat.Attributes.Append(cXA);
-			cXA = cXD.CreateAttribute("blend");
-			cXA.Value = Path.Combine(sWorkFolder, "blender", cXNBlend.AttributeValueGet("blend"));
-			cMat.Attributes.Append(cXA);
-			cXA = cXD.CreateAttribute("threads");
-			cXA.Value = cXNBlend.AttributeValueGet("threads");
-			cMat.Attributes.Append(cXA);
-
-			XmlNode cPython = cXD.CreateElement("python");
-			cPython.InnerText = cXNBlend.InnerText.
-				Replace("{%_IMAGE_LEFT_%}", _cPoll.aCandidates[0].sImage).
-				Replace("{%_IMAGE_RIGHT_%}", _cPoll.aCandidates[1].sImage).
-				Replace("{%_TEXT_TOP_ARRAY_%}", "\"" + _cPoll.sDescription.Remove("\r").Split('\n').Select(o => o.Trim().Replace("\"", "\\\"")).Where(o => !o.IsNullOrEmpty()).Aggregate((r, o) => r += "\",\"" + o) + "\"").
-				Replace("{%_TEXT_LEFT_%}", _cPoll.aCandidates[0].sDescription).
-				Replace("{%_TEXT_RIGHT_%}", _cPoll.aCandidates[1].sDescription);
-			cMat.AppendChild(cPython);
-
-			cXNBlend = cXmlNode.NodeGet("votes");
-			cVotes = cXD.CreateElement("data");
-			cXA = cXD.CreateAttribute("effect");
-			cXA.Value = "render";
-			cVotes.Attributes.Append(cXA);
-			cXA = cXD.CreateAttribute("blend");
-			cXA.Value = Path.Combine(sWorkFolder, "blender", cXNBlend.AttributeValueGet("blend"));
-			cVotes.Attributes.Append(cXA);
-			cXA = cXD.CreateAttribute("threads");
-			cXA.Value = cXNBlend.AttributeValueGet("threads");
-			cVotes.Attributes.Append(cXA);
-			cPython = cXD.CreateElement("python");
-			cPython.InnerText = cXNBlend.InnerText;
-			cVotes.AppendChild(cPython);
-
-			if (!Directory.Exists(_sFolderPoll = Path.Combine(_sFolderPoll, (cMat.InnerText + cVotes.InnerText).GetHashCode().ToStr())))
-				Directory.CreateDirectory(_sFolderPoll);
-
-			cXA = cXD.CreateAttribute("output");
-			cXA.Value = "*" + (sFolderMat = Path.Combine(_sFolderPoll, "mat"));
-			cMat.Attributes.Append(cXA);
-			cMat.InnerXml = cMat.InnerXml.Replace("{%_PATH_%}", sFolderMat.Replace("\\", "/"));
-			if (!Directory.Exists(sFolderMat))
-				Directory.CreateDirectory(sFolderMat);
-
-			cXA = cXD.CreateAttribute("output");
-
-			cXA.Value = "*" + (sFolderVotes = Path.Combine(_sFolderPoll, "votes"));
-			cVotes.Attributes.Append(cXA);
-			cVotes.InnerXml = cVotes.InnerXml.Replace("{%_PATH_%}", sFolderVotes.Replace("\\", "/"));
-			if (!Directory.Exists(sFolderVotes))
-				Directory.CreateDirectory(sFolderVotes);
-
-			cXmlDocument.LoadXml(sData);
-			cXmlNode = cXmlDocument.NodeGet("data");
-			nLeft = cXmlNode.AttributeGet<short>("left");
-			nTop = cXmlNode.AttributeGet<short>("top");
-			bCUDA = cXmlNode.AttributeGet<bool>("cuda");
-			nLayer = cXmlNode.AttributeGet<ushort>("layer");
-		}
-		public void PollUpdate()
+        public bool PollUpdate()
 		{
-			string sFile = Path.Combine(_sWorkFolder, "preferences.xml");
-			XmlDocument cXmlDocument = new XmlDocument();
-			cXmlDocument.Load(sFile);
-			XmlNode cXNPoll = cXmlDocument.NodesGet("preferences/polls/poll").Where(o => (new Poll()
-			{
-				sName = o.AttributeValueGet("name", false),
-				dtLast = o.AttributeGet<DateTime>("dt", false),
-				sDescription = o.NodeGet("description").InnerText,
-				aCandidates = o.NodesGet("candidate").Select(o1 => new Poll.Candidate()
-				{
-					sName = o1.AttributeValueGet("name").ToLower(),
-					sImage = o1.AttributeValueGet("image"),
-					sDescription = o1.AttributeValueGet("description"),
-					nVotesQty = 0
-				}).ToArray()
-			}).nID == _cPoll.nID).FirstOrDefault();
-
-			if (null == cXNPoll)
-				throw new Exception("cannot find target poll");
-			cXNPoll.AttributeAdd("dt", _cPoll.dtLast = DateTime.Now);
-			cXmlDocument.Save(sFile);
+            XmlNode cVotingData = Data.Get(_sRequest, _nTemplate, _cPoll.sName);
+            string sName;
+            int nLeft = -1, nRight = -1;
+            bool bRetVal = false;
+            foreach (XmlNode cNode in cVotingData.NodesGet("item"))
+            {
+                sName = cNode.AttributeValueGet("name");
+                if (sName == _cPoll.aCandidates[0].sName)
+                    nLeft = cNode.AttributeGet<int>("votes");
+                else if (sName == _cPoll.aCandidates[1].sName)
+                    nRight = cNode.AttributeGet<int>("votes");
+            }
+            if (nLeft < 0 || nRight < 0)
+            {
+                (new Logger()).WriteError("не для обоих кандидатов получены голоса [left=" + nLeft + "][right=" + nRight + "]<br>" + cVotingData.OuterXml);
+                if (_cPoll.aCandidates[0].nVotesQtyNew < 0 || _cPoll.aCandidates[1].nVotesQtyNew < 0)
+                    throw new Exception("при старте голосования не удалось получить голоса для обоих кандидатов");
+            }
+            else
+            {
+                bRetVal = _cPoll.IsVotesPercentageChanged(nLeft, nRight);
+                if (bRetVal)
+                {
+                    _cPoll.aCandidates[0].nVotesQtyNew = nLeft;
+                    _cPoll.aCandidates[1].nVotesQtyNew = nRight;
+                    (new Logger()).WriteDebug("votes updated: [left=" + nLeft + "][right=" + nRight + "]");
+                }
+            }
+            return bRetVal;
 		}
-	}
+        /* cVotingData:
+            <item name="odin" votes="1092" />
+            <item name="odin1" votes="500" />
+            <item name="dva" votes="790" />
+            <item name="dva1" votes="390" />
+         */
+    }
 }
-/*
-sFileLeft = "zemfira.jpg"
-sBotTextLeft = 'ОТПРАВЬ ДАША НА НОМЕР 2543'
-bIntro = True
-
-sFileLeft = "zlatoslava.jpg"
-sBotTextRight = 'ОТПРАВЬ МАША НА НОМЕР 2543'
-bIntro = False
-
-sTopText_1 = 'ЗА КОГО ОТДАШЬ ГОЛОС ТЫ?'
-sTopText_2 = 'ДАША ИЛИ МАША?'
-
-sMidTextLeft_1 = "87%"
-sMidTextRight_1 = "13%"
-sMidTextLeft_2 = "92788"
-sMidTextRight_2 = "12394"
-
-*/

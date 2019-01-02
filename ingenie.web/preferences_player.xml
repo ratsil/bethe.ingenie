@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<preferences>
+	<ingenie>
+		<web>
+			<clients>
+				<scr>
+					<!--  тут всё, что нужно только в player.aspx, (а не в клиенте) -->
+					<templates>
+						<template bind="playlist" file="Player Playlist">
+							<player_parameters cache_folder="/path/" fragment_before_now="120" fragment_after_now="240" copy_delay="500" copy_period="3000" >
+							</player_parameters>
+							<scale_video x="0" y="0" width="1920" height="1080" pixel_aspect_ratio="1" />
+						</template>
+					</templates>
+					<automation frame_ms="40" stop_offset="100" file="/path/clip_stop_start.txt" />
+					<others queues_compensation="2" player_log="/path/logs/" dont_check_files="true" />
+				</scr>
+			</clients>
+		</web>
+		<userspace server="127.0.0.1" />
+		<shared port="1239" />
+	</ingenie>
+	<helpers>
+		<common>
+			<logger level="debug2"  subfolder="channel">
+			</logger>
+		</common>
+	</helpers>
+</preferences>

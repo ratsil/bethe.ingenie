@@ -15,4 +15,35 @@
       </text>
     </data>
   </plugin>
+  <plugin file="d:\cues\roll\roll.dll" class="Roll">
+    <data request="yandex.weather" template="0" value="москва;курск" interval="5000">
+      <roll layer="53" direction="RightToLeft" speed="100" cuda="true" queue="3" pause="5000">
+        <area left="0" top="30" width="1920" height="53" />
+      </roll>
+      <item cuda="false">
+        <font name="AG_Futura" size="40" style="regular">
+          <color alpha="255" red="255" green="255" blue="255" />
+          <border width="0">
+            <color alpha="255" red="0" green="0" blue="0" />
+          </border>
+        </font>
+      </item>
+      <item id="region" cuda="false">
+        <font name="AG_Futura" size="40" style="regular">
+          <color alpha="255" red="255" green="255" blue="255" />
+          <border width="0">
+            <color alpha="255" red="0" green="0" blue="0" />
+          </border>
+        </font>
+      </item>
+      <item id="temperature" cuda="false">
+        <font name="AG_Futura" size="40" style="regular">
+          <color alpha="255" red="255" green="255" blue="255" />
+          <border width="0">
+            <color alpha="255" red="0" green="0" blue="0" />
+          </border>
+        </font>
+      </item>
+    </data>
+  </plugin>
 </template>

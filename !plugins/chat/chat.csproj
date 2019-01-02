@@ -126,12 +126,16 @@
     </COMReference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\!helpers\helpers.replica\helpers.replica.csproj">
+      <Project>{1f234a17-6ac8-4dd1-84e6-76c4b40994bf}</Project>
+      <Name>helpers.replica</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\..\helpers\common\helpers.common\helpers.common.csproj">
       <Project>{fbeba6dc-8ea6-49a9-8cb6-e4dd9d1512de}</Project>
       <Name>helpers.common</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\..\helpers\helpers.db\helpers.db.csproj">
-      <Project>{6D2E75AF-BC9F-43FE-9DD7-A0B687092364}</Project>
+      <Project>{6d2e75af-bc9f-43fe-9dd7-a0b687092364}</Project>
       <Name>helpers.db</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\..\helpers\video\PixelsMap\PixelsMap.csproj">
@@ -140,11 +144,7 @@
     </ProjectReference>
     <ProjectReference Include="..\..\..\BTL\BTL.csproj">
       <Project>{06170AA8-16F3-4232-A799-4B181C7F9196}</Project>
-      <Name>BTL %28btl\BTL%29</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\..\!helpers\helpers.replica\helpers.replica.csproj">
-      <Project>{1F234A17-6AC8-4DD1-84E6-76C4B40994BF}</Project>
-      <Name>helpers.replica</Name>
+      <Name>BTL</Name>
     </ProjectReference>
     <ProjectReference Include="..\ingenie.plugins\ingenie.plugins.csproj">
       <Project>{5FC0EA93-028A-40E8-ACE3-B75DC74B5911}</Project>
