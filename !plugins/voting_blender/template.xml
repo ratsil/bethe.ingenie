@@ -16,7 +16,7 @@
     </data>
   </plugin>
   <plugin file="/path/roll.dll" class="Roll">
-    <data request="yandex.weather" template="0" value="text1;text2" interval="5000">
+    <data request="yandex.weather" template="0" value="city1;city2" interval="5000">
       <roll layer="53" direction="RightToLeft" speed="100" cuda="true" queue="3" pause="5000">
         <area left="0" top="30" width="1920" height="53" />
       </roll>

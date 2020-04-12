@@ -134,6 +134,8 @@ namespace ingenie.web
                 public string sDBIServerName;
                 public int nFragmentBeforeNow;  // minutes
                 public int nFragmentAfterNow;  // minutes
+                public bool bIsWithCacheMode;
+                public string sFilesDefaultSort;
 
                 public SCR()
 				{
@@ -148,9 +150,13 @@ namespace ingenie.web
 					aFontFamilies = System.Windows.Media.Fonts.SystemFontFamilies.Select(o => o.Source).Distinct().ToArray();
 				}
 			}
-		}
+            public class Management
+            {
+                public string sRestartFile;
+            }
+        }
 
-		static public Clients.SCR cClientReplica
+        static public Clients.SCR cClientReplica
 		{
 			get
 			{
@@ -158,8 +164,15 @@ namespace ingenie.web
 			}
 		}
 		static public Clients.Presentation cClientPresentation = new Clients.Presentation();
+        static public Clients.Management cClientManagement
+        {
+            get
+            {
+                return _cInstance._cClientManagement;
+            }
+        }
 
-		static public int nRemovingDelayInSeconds
+        static public int nRemovingDelayInSeconds
 		{
 			get
 			{
@@ -196,8 +209,9 @@ namespace ingenie.web
 		private int _nRemovingDelayInSeconds = 600;
 		private int _nDelayForBrowserSwitching = 20; // в секундах
 		private int _nMaxTextWidth = 720;
+        private Clients.Management _cClientManagement;
 
-		public Preferences()
+        public Preferences()
 			: base("//ingenie/web")
 		{
 		}
@@ -214,7 +228,13 @@ namespace ingenie.web
                 XmlNode cXmlNodeChild;
                 XmlNode[] aXmlNodeChilds;
                 XmlNode cXmlNodeClient = cXmlNode.NodeGet("clients/scr", false);
-
+                XmlNode cXmlNodeManagement = cXmlNode.NodeGet("clients/management", false);
+                    
+                if (null != cXmlNodeManagement) 
+                {
+                    _cClientManagement = new Clients.Management();
+                    _cClientManagement.sRestartFile = cXmlNodeManagement.AttributeGet<string>("restart");   // нужна только в клиенте
+                }
                 if (null != cXmlNodeClient)
                 {
                     _cClientSCR = new Clients.SCR();
@@ -311,8 +331,10 @@ namespace ingenie.web
                         {
                             _cClientSCR.nFragmentBeforeNow = cXmlNodeChild.AttributeOrDefaultGet("fragment_before_now", 60);  // нужна только в плеере
                             _cClientSCR.nFragmentAfterNow = cXmlNodeChild.AttributeOrDefaultGet("fragment_after_now", 180);  // нужна только в плеере
+                            _cClientSCR.sFilesDefaultSort = cXmlNodeChild.AttributeOrDefaultGet("sort_files", "date");  // нужна только в клиенте
 
                             sCacheFolder = cXmlNodeChild.AttributeValueGet("cache_folder", false);              // нужна только в плеере
+                            _cClientSCR.bIsWithCacheMode = !sCacheFolder.IsNullOrEmpty();
                             nCopyDelayMiliseconds = cXmlNodeChild.AttributeOrDefaultGet("copy_delay", 0);              // нужна только в плеере
                             nCopyPeriodToDelayMiliseconds = cXmlNodeChild.AttributeOrDefaultGet("copy_period", 0);              // нужна только в плеере
                             if (null != cXmlNodeChild.NodeGet("parameters", false))

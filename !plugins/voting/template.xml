@@ -2,11 +2,12 @@
 <template destroy="self">
 	<plugin file="/path/hashtags.dll" class="Hashtags">
 		<data >
-			<poll name="FIGHT" dt="14.09.2015 19:56:02">
+			<poll name="FIGHT" dt="14.09.2015 19:56:02" api_url="http://domain.com/api/fight">
 				<description>
 					POLL DESCRIPTION LINE1
 					POLL DESCRIPTION LINE2
-					POLL DESCRIPTION LINEN
+					POLL DESCRIPTION LINE3
+					POLL DESCRIPTION LINE4
 				</description>
 				<candidate name="option1" image="1.jpg" description="OPTION1 DECRIPTION" />
 				<candidate name="option2" image="2.jpg" description="OPTION2 DECRIPTION" />

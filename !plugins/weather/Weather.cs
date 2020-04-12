@@ -63,7 +63,7 @@ namespace ingenie.plugins
 				int nOdd = 1;
 				//cRoll.nDuration = 200;
 
-				foreach (Preferences.WeatherItem cWI in _cPreferences.aWeatherItems)
+				foreach (helpers.data.Data.WeatherItem cWI in _cPreferences.aWeatherItems)
 				{
 					if (cWI == _cPreferences.aWeatherItems[_cPreferences.aWeatherItems.Count - 1])
 						bLastTime = true;

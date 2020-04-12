@@ -8,7 +8,7 @@
 		<device make="aja" target="0" channel="0">
 			<audio rate="48000" channels="8" bits="16" bits_send="32" channels_ffmpeg="2" />			<!--if make='aja' ch=6 bits_send = 32  if 'decklink' ch=8, delete bits_send parameter or bits_send=16 -->
 			<video anamorph="true" alpha="false" />
-			<queue clock_bias="60" ffmpeg="15" animation="15" packets="200000000" threads="4" frame_timeout="00:00:08" gc_interval="50" /> <!-- clock_bias - adding in clock effect to correct current time (in frames)  -->
+			<queue clock_bias="60" ffmpeg="15" animation="15" packets="200000000" threads="4" get_block_timeout="00:00:20" gc_interval="50" /> <!-- clock_bias - adding in clock effect to correct current time (in frames)  -->
 		</device>
 	</btl>
 	<ingenie>

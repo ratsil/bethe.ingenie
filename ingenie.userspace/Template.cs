@@ -408,7 +408,16 @@ namespace ingenie.userspace
 						sValue = null;
 						if (null == MacroExecute)
 							throw new Exception("отсутствует привязка макро-строки [" + cMatch.Value + "]"); //TODO LANG
+                        try
+                        {
 						sValue = MacroExecute(cMatch.Value);
+                        }
+                        catch
+                        {
+                            (new Logger()).WriteNotice("template got error while processing macro first time [" + cMatch.Value + "] will try again");
+                            System.Threading.Thread.Sleep(500);
+                            sValue = MacroExecute(cMatch.Value);
+                        }
 						sValue = ProcessRuntimes(sValue);
 						sRetVal = sRetVal.Replace(cMatch.Value, sValue.ForXML());
 					}

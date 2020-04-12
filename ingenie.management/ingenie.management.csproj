@@ -156,6 +156,12 @@
     <None Include="Service References\service\ingenie.management.service.BaetylusEffectStopResponse.datasource">
       <DependentUpon>Reference.svcmap</DependentUpon>
     </None>
+    <None Include="Service References\service\ingenie.management.service.MgmtWriteErrorResponse.datasource">
+      <DependentUpon>Reference.svcmap</DependentUpon>
+    </None>
+    <None Include="Service References\service\ingenie.management.service.MgmtWriteNoticeResponse.datasource">
+      <DependentUpon>Reference.svcmap</DependentUpon>
+    </None>
     <None Include="Service References\service\Management.disco" />
     <None Include="Service References\service\configuration91.svcinfo" />
     <None Include="Service References\service\configuration.svcinfo" />

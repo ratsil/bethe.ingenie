@@ -4,11 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using System.Linq;
 using helpers;
 using helpers.extensions;
 using helpers.replica.ia;
 using helpers.replica.cues;
 using helpers.replica.pl;
+using helpers.replica.logs;
 
 namespace ingenie.plugins
 {
@@ -59,6 +61,13 @@ namespace ingenie.plugins
         {
             return MessagesCountGet("`dtDisplay` IS NULL");
         }
+        public Message[] MessagesHistoryGet(int nCount, string sWhereExcept)
+        {
+            string sAnd = sWhereExcept.IsNullOrEmpty() ? "" : " AND ";
+            if (!sWhereExcept.IsNullOrEmpty())
+                sWhereExcept = sWhereExcept.Replace("%DOW%", "extract(dow from `dtRegister`)").Replace("%HOUR%", "extract(hour from `dtRegister`)");
+            return MessagesGet("NOT `dtDisplay` IS NULL" + sAnd + sWhereExcept, "`dtDisplay` DESC", (ushort)nCount).OrderBy(o => o.dtDisplay).ToArray();
+        }
     }
     public class Chat : MarshalByRefObject, IPlugin
     {
@@ -71,6 +80,8 @@ namespace ingenie.plugins
         private SMSChat _cSMSChat;
         private Preferences _cPreferences;
         private int _nPromoReleased = 0;  //-1 нет 1 да 0 - после перезагрузки сервиса
+        private Queue<SMS> _aqHistorySMSs;
+        private bool _bChatWasAddedToLogsOnStart;
         private Preferences.Promo _cPromoLast   //выдаём последнее промо снабжая его временем выхода (из файла vip.dat)
         {
             get
@@ -141,6 +152,7 @@ namespace ingenie.plugins
             return cRetVal;
         }
 		bool _bStopped, _bWorkerSMSEnd, _bWorkerEnd;
+        object _oLockStop;
 		Queue<SMS> _aqSMSs;
         #endregion
         public Chat()
@@ -150,7 +162,10 @@ namespace ingenie.plugins
 			_bWorkerEnd = true;
 			_bWorkerSMSEnd = true;
 			_oLock = new object();
-		}
+            _oLockStop = new object();
+            _aqHistorySMSs = new Queue<SMS>();
+            _bChatWasAddedToLogsOnStart = false;
+        }
         public void Create(string sWorkFolder, string sData) 
         {
             _cPreferences = new Preferences(sWorkFolder, sData);
@@ -204,14 +219,14 @@ namespace ingenie.plugins
 			_bWorkerEnd = false;
             try
             {
-				(new Logger()).WriteDebug3("chat started");
-				if (null == _cSMSChat)
-				{
-					_bWorkerEnd = true;
-					return;
-				}
-				Logger.Timings cTimings = new helpers.Logger.Timings("chat:Worker");
-				Queue<ChatInOut> aqChatInOuts = null;
+                (new Logger()).WriteDebug3("chat started");
+                if (null == _cSMSChat)
+                {
+                    _bWorkerEnd = true;
+                    return;
+                }
+                Logger.Timings cTimings = new helpers.Logger.Timings("chat:Worker");
+                Queue<ChatInOut> aqChatInOuts = null;
                 DateTime dtBase = DateTime.Now;
                 DBInteract cDBI = null;
                 PlaylistItem cCurrentPLI = null;
@@ -222,17 +237,17 @@ namespace ingenie.plugins
 
                     while (!_bStopped && null == cCurrentPLI)
                     {
-						//if (DateTime.Now > dtNextTimeLog_Worker)
-						//{
-						//    (new Logger()).WriteNotice("Worker: I'm HERE! [hash:" + this.GetHashCode() + "]");
-						//    dtNextTimeLog_Worker = DateTime.Now.AddMinutes(1);
-						//}
+                        //if (DateTime.Now > dtNextTimeLog_Worker)
+                        //{
+                        //    (new Logger()).WriteNotice("Worker: I'm HERE! [hash:" + this.GetHashCode() + "]");
+                        //    dtNextTimeLog_Worker = DateTime.Now.AddMinutes(1);
+                        //}
                         aqCU = cDBI.ComingUpGet(0, 1);
                         if (0 < aqCU.Count)
                         {
                             cCurrentPLI = aqCU.Dequeue();
                             aqChatInOuts = cDBI.ChatInOutsGet(cCurrentPLI.cAsset);
-//							aqChatInOuts = cDBI.ChatInOutsGet(helpers.replica.mam.Asset.Load(3261));
+                            //							aqChatInOuts = cDBI.ChatInOutsGet(helpers.replica.mam.Asset.Load(3261));
                             if (0 < aqChatInOuts.Count)
                                 dtBase = cCurrentPLI.dtStartReal;
                             else
@@ -248,90 +263,106 @@ namespace ingenie.plugins
                 }
 
 
-				// ==========================================================================================================
-				//dtBase = DateTime.Now;
-				//aqChatInOuts = new Queue<ChatInOut>();
-				//aqChatInOuts.Enqueue(new ChatInOut(1176, new TimeRange(400, 900)));
-				//aqChatInOuts.Enqueue(new ChatInOut(1176, new TimeRange(1300, 1600)));
-				//aqChatInOuts.Enqueue(new ChatInOut(1176, new TimeRange(2200, 3500)));
-				// ==========================================================================================================
+                // ==========================================================================================================
+                //dtBase = DateTime.Now;
+                //aqChatInOuts = new Queue<ChatInOut>();
+                //aqChatInOuts.Enqueue(new ChatInOut(1176, new TimeRange(400, 900)));
+                //aqChatInOuts.Enqueue(new ChatInOut(1176, new TimeRange(1300, 1600)));
+                //aqChatInOuts.Enqueue(new ChatInOut(1176, new TimeRange(2200, 3500)));
+                // ==========================================================================================================
 
 
                 if (null == aqChatInOuts)
                 {
                     aqChatInOuts = new Queue<ChatInOut>();
-					aqChatInOuts.Enqueue(new ChatInOut(-1, 1, int.MaxValue));
+                    aqChatInOuts.Enqueue(new ChatInOut(-1, 1, int.MaxValue));
                 }
 
-				ChatInOut cChatInOut;
+                ChatInOut cChatInOut;
                 DateTime dtStop;
                 int nMSStartDelay;
-
-				ThreadPool.QueueUserWorkItem(WorkerSMS);
-
-				while (!_bStopped && 0 < aqChatInOuts.Count)
+                bool bIsAir = cDBI.IsThereAnyStartedLiveBroadcast();
+                (new Logger()).WriteDebug2("ChatLogStartAdd [isair=" + bIsAir + "][type=" + _cPreferences.eBroadcastType + "][release=" + _cPreferences.bMessagesRelease + "]");
+                if (_cPreferences.bMessagesRelease && !(_cPreferences.eBroadcastType == Preferences.BroadcastType.linear && bIsAir) && !(_cPreferences.eBroadcastType == Preferences.BroadcastType.live && !bIsAir))
                 {
-					//if (DateTime.Now > dtNextTimeLog_Worker)
-					//{
-					//    (new Logger()).WriteNotice("Worker: I'm HERE! [hash:" + this.GetHashCode() + "]");
-					//    dtNextTimeLog_Worker = DateTime.Now.AddMinutes(1);
-					//}
+                    bool bOk = cDBI.ChatLogStartAdd(DateTime.Now.AddSeconds(4));
+                    (new Logger()).WriteNotice("ChatLogStartAdd - " + bOk);
+                    _bChatWasAddedToLogsOnStart = true;
+                }
+                else
+                    _bChatWasAddedToLogsOnStart = false;
+
+                ThreadPool.QueueUserWorkItem(WorkerSMS);
+
+                while (!_bStopped && 0 < aqChatInOuts.Count)
+                {
+                    //if (DateTime.Now > dtNextTimeLog_Worker)
+                    //{
+                    //    (new Logger()).WriteNotice("Worker: I'm HERE! [hash:" + this.GetHashCode() + "]");
+                    //    dtNextTimeLog_Worker = DateTime.Now.AddMinutes(1);
+                    //}
                     cChatInOut = aqChatInOuts.Dequeue();
                     if (TimeSpan.MaxValue > cChatInOut.cTimeRange.tsOut)
-						dtStop = dtBase.Add(cChatInOut.cTimeRange.tsOut);
+                        dtStop = dtBase.Add(cChatInOut.cTimeRange.tsOut);
                     else
                         dtStop = DateTime.MaxValue;
 
                     if (DateTime.Now > dtStop.AddSeconds(-20))
                         continue;
 
-					if (_cSMSChat.bReleased)
-					{
-						_cSMSChat.Init();
-					}
-					nMSStartDelay = (int)dtBase.Add(cChatInOut.cTimeRange.tsIn).Subtract(DateTime.Now).TotalMilliseconds;
+                    if (_cSMSChat.bReleased)
+                    {
+                        _cSMSChat.Init();
+                    }
+                    nMSStartDelay = (int)dtBase.Add(cChatInOut.cTimeRange.tsIn).Subtract(DateTime.Now).TotalMilliseconds;
                     if (0 < nMSStartDelay)
                         Thread.Sleep(nMSStartDelay);
                     _cSMSChat.Start();
 
-					//#if UNLIMIT
-					//while (!_bStopped)
-					//#else
-					//while (!_cSMSChat.IsChatTerminating)
-					//#endif
-					while (ChatMustGoOn()) 
+                    //#if UNLIMIT
+                    //while (!_bStopped)
+                    //#else
+                    //while (!_cSMSChat.IsChatTerminating)
+                    //#endif
+                    bool bNotFirst = false;
+                    while (ChatMustGoOn())
                     {
-						//if (DateTime.Now > dtNextTimeLog_Worker)
-						//{
-						//    (new Logger()).WriteNotice("Worker: I'm HERE! [hash:" + this.GetHashCode() + "]");
-						//    dtNextTimeLog_Worker = DateTime.Now.AddMinutes(1);
-						//}
+                        //if (DateTime.Now > dtNextTimeLog_Worker)
+                        //{
+                        //    (new Logger()).WriteNotice("Worker: I'm HERE! [hash:" + this.GetHashCode() + "]");
+                        //    dtNextTimeLog_Worker = DateTime.Now.AddMinutes(1);
+                        //}
                         if (_cPreferences.eBroadcastType == Preferences.BroadcastType.linear && DateTime.Now > dtStop)
                             break;
                         if (4 > _cSMSChat.QueueLength)   //  4>
-						{
-							lock (_aqSMSs)
-							{
-								if (0 < _aqSMSs.Count)
-								{
-									_cSMSChat.MessagesAdd(_aqSMSs);
-									_aqSMSs.Clear();
-								}
-							}
-						}
+                        {
+                            lock (_aqSMSs)
+                            {
+                                if (0 < _aqSMSs.Count)
+                                {
+                                    bNotFirst = true;
+                                    _cSMSChat.MessagesAdd(_aqSMSs);
+                                    _aqSMSs.Clear();
+                                }
+                                if (bNotFirst && 4 > _cSMSChat.QueueLength && _cPreferences.cRoll.nUseHistorySMS > 0)
+                                {
+                                    _cSMSChat.MessagesAdd(GetHistorySMSs(5));
+                                }
+                            }
+                        }
 
-						//GC.Collect
-						Thread.Sleep(500);
+                        //GC.Collect
+                        Thread.Sleep(500);
                     }
-					(new Logger()).WriteDebug3("chat stopped" + (DateTime.MaxValue > dtStop ? ":" + dtStop.ToStr() : ""));
-					lock (_oLock)
-					{
-						if (null != _cSMSChat)
-						{
-							_cSMSChat.Stop();
-							_cSMSChat.Release();     // ушла в stop()
-						}
-					}
+                    (new Logger()).WriteDebug3("chat stopped" + (DateTime.MaxValue > dtStop ? ":" + dtStop.ToStr() : ""));
+                    lock (_oLock)
+                    {
+                        if (null != _cSMSChat)
+                        {
+                            _cSMSChat.Stop();
+                            _cSMSChat.Release();     // ушла в stop()
+                        }
+                    }
                     (new Logger()).WriteDebug4("return");
                 }
             }
@@ -341,27 +372,29 @@ namespace ingenie.plugins
                 try
                 {
                     _cSMSChat.Stop();
-					//_cSMSChat.Release();    ушла в stop()
+                    //_cSMSChat.Release();    ушла в stop()
                 }
                 catch (Exception ex1)
                 {
-                    (new Logger()).WriteError(ex1);
+                    (new Logger()).WriteError("catch: ", ex1);
                 }
             }
-			_bWorkerEnd = true;
-			try
-			{
-				if (!_bStopped)
-					Stop();
-				//if (!_bStopped && null != Stopped)
-				//    Stopped(this);                     ушла в stop()
-				//_bStopped = true;                      ушла в stop()
-				(new Logger()).WriteNotice("chat worker stopped");
-			}
-			catch (Exception ex)
-			{
-				(new Logger()).WriteError(ex);
-			}
+            finally
+            {
+                _bWorkerEnd = true;
+                try
+                {
+                    Stop();
+                    //if (!_bStopped && null != Stopped)
+                    //    Stopped(this);                     ушла в stop()
+                    //_bStopped = true;                      ушла в stop()
+                    (new Logger()).WriteNotice("chat worker stopped");
+                }
+                catch (Exception ex)
+                {
+                    (new Logger()).WriteError("finally: ", ex);
+                }
+            }
 		}
         private void WorkerSMS(object cState)
         {
@@ -380,21 +413,22 @@ namespace ingenie.plugins
 					//}
 					try
 					{
-						lock (_aqSMSs)
-							nCount = _aqSMSs.Count;
-						if (1 > nCount)
-						{
-							aqSMSs = GetSMSs(10);
-							if (null != aqSMSs && 0 < aqSMSs.Count)
-							{
-								lock (_aqSMSs)
-								{
-									while (0 < aqSMSs.Count)
-										_aqSMSs.Enqueue(aqSMSs.Dequeue());
-								}
-							}
-						}
-						MessagesRelease();
+                        lock (_aqSMSs)
+                            nCount = _aqSMSs.Count;
+                        if (5 >= nCount)
+                        {
+                            aqSMSs = GetSMSs(5);
+
+                            if (!aqSMSs.IsNullOrEmpty())
+                            {
+                                lock (_aqSMSs)
+                                {
+                                    while (0 < aqSMSs.Count)
+                                        _aqSMSs.Enqueue(aqSMSs.Dequeue());
+                                }
+                            }
+                        }
+                        MessagesRelease();
 					}
 					catch (Exception ex)
 					{
@@ -415,41 +449,68 @@ namespace ingenie.plugins
 		}
         public void Stop()
         {
+            lock (_oLockStop)
+            {
+                if (_bStopped)
+                    return;
+                _bStopped = true;
+            }
             try
             {
-				if (_bStopped)
-					return;
-                _bStopped = true;
                 _cSMSChat.IsChatTerminating = true;
-				(new Logger()).WriteNotice("Stop: IsChatTerminating = true");
+                (new Logger()).WriteNotice("Stop: IsChatTerminating = true");
                 DateTime dtNow = DateTime.Now.AddSeconds(5);
-				while ((_cSMSChat.IsChatTerminating || _cSMSChat.IsInfoOnAir) && DateTime.Now < dtNow)
+                while ((_cSMSChat.IsChatTerminating || _cSMSChat.IsInfoOnAir) && DateTime.Now < dtNow)
                     Thread.Sleep(50);
 
-				while (!_bWorkerSMSEnd && !_bWorkerEnd)
-					Thread.Sleep(50);
+                while (!_bWorkerSMSEnd && !_bWorkerEnd)
+                    Thread.Sleep(50);
 
-				_cSMSChat.Stop();
-				_cSMSChat.Release();
-				(new Logger()).WriteNotice("Stop: after _cSMSChat.Release();");
-				lock (_oLock)
-				{
-					_cSMSChat = null;
-				}
-				_cPreferences = null;
-			}
+                _cSMSChat.Stop();
+                _cSMSChat.Release();
+                (new Logger()).WriteNotice("Stop: after _cSMSChat.Release();");
+                lock (_oLock)
+                {
+                    _cSMSChat = null;
+                }
+            }
             catch (Exception ex)
             {
                 (new Logger()).WriteError(ex);
-			}
-			_eStatus = BTL.EffectStatus.Stopped;
-			_dtStatusChanged = DateTime.Now;
-			if (null != Stopped)
-                Plugin.EventSend(Stopped, this);
-		}
+            }
+            finally
+            {
+                try
+                {
+                    DBInteract cDBI = new DBInteract();
+                    bool bIsAir = cDBI.IsThereAnyStartedLiveBroadcast();
+                    (new Logger()).WriteDebug2("ChatLogStopAdd [isair=" + bIsAir + "][type=" + _cPreferences.eBroadcastType + "][release=" + _cPreferences.bMessagesRelease + "]");
+                    if (_cPreferences.bMessagesRelease && !(_cPreferences.eBroadcastType == Preferences.BroadcastType.linear && bIsAir) && !(_cPreferences.eBroadcastType == Preferences.BroadcastType.live && !bIsAir))
+                    {
+                        bool bOk = cDBI.ChatLogStopAdd(DateTime.Now.AddSeconds(4));
+                        (new Logger()).WriteNotice("ChatLogStopAdd - " + bOk);
+                    }
+                    else if (_bChatWasAddedToLogsOnStart)
+                    {
+                        bool bOk = cDBI.ChatLogStopAdd(DateTime.Now.AddSeconds(4));
+                        (new Logger()).WriteNotice("ChatLogStopAdd-2 - " + bOk);
+                    }
+                    _bChatWasAddedToLogsOnStart = false;
+                    _eStatus = BTL.EffectStatus.Stopped;
+                    _dtStatusChanged = DateTime.Now;
+                    _cPreferences = null;
+                    if (null != Stopped)
+                        Plugin.EventSend(Stopped, this);
+                }
+                catch (Exception ex)
+                {
+                    (new Logger()).WriteError("Stop: ", ex);
+                }
+            }
+        }
 
-		#region IPlugin
-		event EventDelegate IPlugin.Prepared
+        #region IPlugin
+        event EventDelegate IPlugin.Prepared
 		{
 			add
 			{
@@ -516,15 +577,81 @@ namespace ingenie.plugins
         {
             this.Stop();
         }
-		#endregion
+#endregion
 
-		#region SMS Proccessing
+#region SMS Proccessing
 
-		private Queue<SMS> GetSMSs(int nQtty)
+        private bool FillHistoryQueue()
+        {
+            if (_aqHistorySMSs.IsNullOrEmpty())
+            {
+                DBInteract cDBI = new DBInteract();
+                Message[] aMessages = cDBI.MessagesHistoryGet(_cPreferences.cRoll.nUseHistorySMS, _cPreferences.cRoll.cExceptions.sWhere);
+                if (!aMessages.IsNullOrEmpty())
+                {
+                    Queue<SMS> aqSMS = new Queue<SMS>();
+                    Message cMessage;
+                    SMS cSMS;
+                    for (int nI = 0; nI < aMessages.Length; nI++)
+                    {
+                        cMessage = aMessages[nI];
+                        cSMS = new SMS();
+                        cSMS.ID = cMessage.nID;
+                        cSMS.sText = cMessage.sText.ToString();
+                        if (cSMS.sText.StartsWith(_cPreferences.cVIP.sPrefix))
+                        {
+                            cSMS.sText = cSMS.sText.Remove(0, _cPreferences.cVIP.sPrefix.Length);
+                        }
+                        else if (cSMS.sText.StartsWith(_cPreferences.sPhotoPrefix))
+                        {
+                            continue;
+                        }
+                        cSMS.eType = SMS.Type.Repeat;
+                        cSMS.cPreferences = _cPreferences.cRoll.cSMSCommon;
+                        if (_cPreferences.cRoll.cSMSCommon.bToUpper)
+                            cSMS.sText = cSMS.sText.ToUpper();
+                        cSMS.Phone = "+" + cMessage.nSourceNumber;
+                        aqSMS.Enqueue(cSMS);
+                    }
+                    if (!aqSMS.IsNullOrEmpty())
+                    {
+                        _aqHistorySMSs = aqSMS;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        private Queue<SMS> GetHistorySMSs(int nQtty)
+        {
+            Queue<SMS> ahRetVal = new Queue<SMS>();
+            try
+            {
+                while (ahRetVal.Count < nQtty)
+                {
+                    if (_aqHistorySMSs.IsNullOrEmpty() && !FillHistoryQueue())
+                    {
+                        (new Logger()).WriteError("no history SMS!");
+                        break;
+                    }
+                    ahRetVal.Enqueue(_aqHistorySMSs.Dequeue());
+                }
+
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+            }
+            return ahRetVal;
+        }
+
+
+        private Queue<SMS> GetSMSs(int nQtty)
         {
 			Queue<SMS> aRetVal = new Queue<SMS>();
 			try
             {
+                List<Message> aM = null;
 				Queue<Message> aqMessages = null;
 				Message cMessage = null;
                 SMS cSMS = null;
@@ -533,6 +660,21 @@ namespace ingenie.plugins
                 {
                     if (_cPreferences.eBroadcastType == Preferences.BroadcastType.linear && cDBI.IsThereAnyStartedLiveBroadcast())
                     {
+                        if (_cPreferences.bAnotherAirError)
+                        {
+                            (new Logger()).WriteError("there is another broadcast on air. chat is off. see DB scr.shifts");
+                        }
+                        else
+                        {
+                            (new Logger()).WriteNotice("there is another broadcast on air. chat is off. see DB scr.shifts");
+                        }
+                        System.Threading.Thread.Sleep(6000);
+                        return aRetVal;  // do not display errors to people
+
+
+
+
+
                         cSMS = new SMS() { cPreferences = _cPreferences.cRoll.cSMSVIP };
 
                         //cSMS.Color = null;
@@ -554,34 +696,39 @@ namespace ingenie.plugins
                 Preferences.nUndisplayedMessages = cDBI.MessagesUndisplayedCountGet();
                 Preferences.Promo cPromo;
                 Preferences.Promo cPromoLast = _cPromoLast;
+                aM = new List<Message>();
+
                 if (null != cPromoLast)
                 {
-					aqMessages = new Queue<Message>();
 					DateTime dtNow = DateTime.Now;
                     if (dtNow >= cPromoLast.dtLastShow.Add(_cPreferences.cVIP.tsPromoPeriod) && null != (cPromo = GetNextPromo(cPromoLast, dtNow)))
 					{
 						cMessage = new Message(-109, "-109", null, 1, 70000000002, 0, "PROMO " + cPromo.sText, null, dtNow, dtNow);
 						cPromo.dtLastShow = dtNow;
                         _cPromoLast = cPromo;
-						aqMessages.Enqueue(cMessage);
+                        aM.Add(cMessage);
 					}
-					if (1 > aqMessages.Count)
-						aqMessages = null;
+                }
+                if (aM.Count < nQtty)
+                {
+                    aqMessages = cDBI.MessagesQueuedGet(_cPreferences.cVIP.sPrefix);
+                    if (!aqMessages.IsNullOrEmpty())
+                        aM.AddRange(aqMessages.ToArray());
                 }
 
-				if (null == aqMessages)
-				{
-					aqMessages = cDBI.MessagesQueuedGet(_cPreferences.cVIP.sPrefix);
-					if (null == aqMessages || 1 > aqMessages.Count)
-						aqMessages = cDBI.MessagesQueuedGet();
-				}
+                if (aM.Count < nQtty)
+                {
+                    aqMessages = cDBI.MessagesQueuedGet();
+                    if (!aqMessages.IsNullOrEmpty())
+                        aM.AddRange(aqMessages.ToArray());
+                }
 
-				while (null != aqMessages && 0 < aqMessages.Count)
+                for (int nI = 0; nI < aM.Count; nI++)
 				{
                     try
                     {
-						cMessage = aqMessages.Dequeue();
-						cSMS = new SMS();
+                        cMessage = aM[nI];
+                        cSMS = new SMS();
 						cSMS.ID = cMessage.nID;
 						cSMS.sText = cMessage.sText.ToString();
                         if (cSMS.sText.StartsWith(_cPreferences.cVIP.sPrefix))
@@ -612,17 +759,19 @@ namespace ingenie.plugins
                         {
                             cSMS.eType = SMS.Type.Common;
                             cSMS.cPreferences = _cPreferences.cRoll.cSMSCommon;
-							if (_cPreferences.cRoll.cSMSCommon.bToUpper)
-								cSMS.sText = cSMS.sText.ToUpper();
-						}
-						cSMS.Phone = "+" + cMessage.nSourceNumber;
-						aRetVal.Enqueue(cSMS);
+                            if (_cPreferences.cRoll.cSMSCommon.bToUpper)
+                                cSMS.sText = cSMS.sText.ToUpper();
+                        }
+                        cSMS.Phone = "+" + cMessage.nSourceNumber;
+                        aRetVal.Enqueue(cSMS);
+                        if (aRetVal.Count >= nQtty)
+                            break;
                     }
                     catch (Exception ex)
                     {
 						if (null == _cSMSChat)
 							break;
-						(new Logger()).WriteWarning("[msgsc:" + aqMessages.Count + "]");
+                        (new Logger()).WriteWarning("[msgsc:" + aM.Count + "][msg:" + aM[nI]?.sText + "]");
                         (new Logger()).WriteWarning("ERROR:" + ex.Message + ex.StackTrace.ToString());
                     }
                 }
@@ -664,6 +813,6 @@ namespace ingenie.plugins
 				(new Logger()).WriteError(ex);
 			}
 		}
-		#endregion
+#endregion
     }
 }

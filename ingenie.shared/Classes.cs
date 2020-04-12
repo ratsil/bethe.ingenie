@@ -57,22 +57,29 @@ namespace ingenie.shared
             }
         }
         public string[] FileNamesGet(string sFolder, string[] aExtensions)
+        {
+            return FileNamesGet(sFolder, aExtensions, false);
+        }
+        public string[] FileNamesGet(string sFolder, string[] aExtensions, bool bAddDate)
 		{
             try
             {
                 List<string> aResult = new List<string>();
                 List<System.IO.FileInfo> aFiles = new List<System.IO.FileInfo>();
                 System.IO.DirectoryInfo cDir = new System.IO.DirectoryInfo(sFolder);
+                string[] aRetVal;
                 if (null == aExtensions)
                 {
-                    return cDir.GetFiles("*.*").OrderByDescending(o=>o.CreationTime).Select(o => o.Name).ToArray();
+                    aFiles.AddRange(cDir.GetFiles("*.*"));
                 }
-
-                foreach (string sExt in aExtensions)
+                else
                 {
-                    aFiles.AddRange(cDir.GetFiles("*." + sExt));
+                    foreach (string sExt in aExtensions)
+                    {
+                        aFiles.AddRange(cDir.GetFiles("*." + sExt));
+                    }
                 }
-                return aFiles.OrderByDescending(o => o.CreationTime).Select(o => o.Name).ToArray();
+                return aFiles.OrderByDescending(o => o.LastWriteTime).Select(o => o.Name + (bAddDate ? ";" + o.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss") : "")).ToArray();
             }
             catch (Exception ex)
             {
@@ -128,25 +135,46 @@ namespace ingenie.shared
                 return false;
             }
         }
-        public bool FileCopy(string sSource, string sTarget)
-		{
-			try
-			{
-				System.IO.File.Copy(sSource, sTarget);
-				return true;
-			}
-			catch (Exception ex)
-			{
+        static private bool _bDoingCopy;
+        public void FileCopyAsync(string sSource, string sTarget)   // may be long and timout
+        {
+            try
+            {
+                System.Threading.ThreadPool.QueueUserWorkItem((o) =>
+                {
+                    try
+                    {
+                        _bDoingCopy = true;
+                        System.IO.File.Copy(sSource, sTarget);
+                        _bDoingCopy = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        (new Logger()).WriteError("[src=" + sSource + "][trg=" + sTarget + "]", ex);
+                    }
+                    finally
+                    {
+                        _bDoingCopy = false;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
                 (new Logger()).WriteError("[src=" + sSource + "][trg=" + sTarget + "]", ex);
-                return false;
-			}
-		}
+            }
+        }
 
         static private helpers.CopyFileExtended _cCurrentCopying;
+        static private bool? _bExCopyResult;
+        static private bool _bDoingExCopy;
         public bool CopyFileExtendedCreate(string sSource, string sTarget, int nDelayMiliseconds, int nPeriodToDelayMiliseconds, long nFramesDur)
         {
             try
             {
+                if (_bDoingExCopy)
+                    return false;
+                _bExCopyResult = null;
+                _bDoingExCopy = false;
                 _cCurrentCopying = new helpers.CopyFileExtended(sSource, sTarget, nDelayMiliseconds, nPeriodToDelayMiliseconds, nFramesDur);  // медленное копирование 
                 return true;
             }
@@ -156,16 +184,32 @@ namespace ingenie.shared
                 return false;
             }
         }
-        public bool CopyFileExtendedDoCopy(bool bResetLastWriteTime)
+        public void CopyFileExtendedDoCopyAsync(bool bResetLastWriteTime)   // may be long and timout
         {
             try
             {
-                return _cCurrentCopying.DoCopy(bResetLastWriteTime);
+                System.Threading.ThreadPool.QueueUserWorkItem((o) =>
+                {
+                    try
+                    {
+                        _bDoingExCopy = true;
+                        _bExCopyResult = _cCurrentCopying.DoCopy(bResetLastWriteTime);
+                    }
+                    catch (Exception ex)
+                    {
+                        (new Logger()).WriteError("CopyFileExtendedDoCopyAsync.Worker", ex);
+                        _bExCopyResult = false;
+                    }
+                    finally
+                    {
+                        _bDoingExCopy = false;
+                    }
+                });
             }
             catch (Exception ex)
             {
-                (new Logger()).WriteError(ex);
-                return false;
+                (new Logger()).WriteError("CopyFileExtendedDoCopyAsync", ex);
+                _bExCopyResult = false;
             }
         }
         public float CopyFileExtendedProgressPercentGet()
@@ -192,6 +236,21 @@ namespace ingenie.shared
                 return true;
             }
         }
+        public bool? ExCopyResult()
+        {
+            try
+            {
+                return _bExCopyResult;
+            }
+            catch (Exception ex)
+            {
+                (new Logger()).WriteError(ex);
+                return false;
+            }
+        }
+
+
+
         #endregion
         #region - Management -
         #region . BaetylusEffectsInfoGet .

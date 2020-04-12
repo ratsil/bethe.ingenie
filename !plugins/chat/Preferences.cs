@@ -40,12 +40,27 @@ namespace ingenie.plugins
 		}
         public class Roll
         {
+            public class HoursExceptions
+            {
+                public string sWhere;
+                public HoursExceptions(string sExceptions)
+                { // (1,2,3,4,5):(12,13,14,15,16,17,18);(6,0):(12,13)
+                    if (sExceptions.IsNullOrEmpty())
+                    {
+                        sWhere = "";
+                        return;
+                    }
+                    this.sWhere = " NOT (%DOW% in " + sExceptions.Replace(":", " AND %HOUR% in ").Replace(";", " OR %DOW% in ") + ") ";
+                }
+            }
             private int nMinUndisplayedMessages = 10;
             private int nMaxUndisplayedMessages = 100;
             private float nMinSecondsPerLine = 2.0f;  // in sec
             public ushort nLayer;
             public MergingMethod stMerging;
             public float nSpeed;
+            public int nUseHistorySMS;  
+            public HoursExceptions cExceptions;
             private float _nSecondsPerLine;
             public float nSecondsPerLine
             {
@@ -141,6 +156,7 @@ namespace ingenie.plugins
         static public int nUndisplayedMessages;
         public bool bMessagesRelease;
         public BroadcastType eBroadcastType;
+        public bool bAnotherAirError;
         public int nSMSQtty;
         public Crawl cCrawl;
         public Roll cRoll;
@@ -163,8 +179,9 @@ namespace ingenie.plugins
             bMessagesRelease = cXmlNode.AttributeOrDefaultGet<bool>("release", false);
             eBroadcastType = cXmlNode.AttributeOrDefaultGet<BroadcastType>("type", BroadcastType.linear);
             nSMSQtty = cXmlNode.AttributeGet<int>("queue");
+            bAnotherAirError = cXmlNode.AttributeOrDefaultGet<bool>("another_air_err", false);
 
-			XmlNode cNodeChild = cXmlNode.NodeGet("vip");
+            XmlNode cNodeChild = cXmlNode.NodeGet("vip");
             if (null != cNodeChild)
             {
                 cVIP = new VIP();
@@ -204,7 +221,10 @@ namespace ingenie.plugins
             cRoll = new Roll();
             cRoll.nLayer = cNodeChild.AttributeGet<ushort>("layer");
 			cRoll.nSpeed = cNodeChild.AttributeGet<float>("speed");
-			cRoll.stMerging = new MergingMethod(cNodeChild);
+            cRoll.nUseHistorySMS = cNodeChild.AttributeOrDefaultGet<int>("use_history", 0); // 0 is off
+            string sEx = cNodeChild.AttributeOrDefaultGet<string>("exceptions", ""); // 0 is off
+            cRoll.cExceptions = new Roll.HoursExceptions(sEx);
+            cRoll.stMerging = new MergingMethod(cNodeChild);
             XmlNode cXNGrandChild = cNodeChild.NodeGet("holds");
             cRoll.SecondsPerLineSet(cXNGrandChild.AttributeGet<float>("line"));
             cRoll.nSecondsPerPause = cXNGrandChild.AttributeGet<float>("pause");
@@ -280,7 +300,7 @@ namespace ingenie.plugins
 			cRetVal.nInDissolve = cXmlNode.AttributeOrDefaultGet<byte>("in_dissolve", 0);
 			cRetVal.nShiftTop = cXmlNode.AttributeOrDefaultGet<short>("shift_top", 0);
 			cRetVal.nPressBottom = cXmlNode.AttributeOrDefaultGet<short>("press_bot", 0);
-			cRetVal.nCenterShift = cXmlNode.AttributeOrDefaultGet<short>("center_shift", 0);  // вниз на сколько надо сдвнуть строку, чтобы в своей area она стала по центру
+			cRetVal.nCenterShift = cXmlNode.AttributeOrDefaultGet<short>("center_shift", 0);  // РІРЅРёР· РЅР° СЃРєРѕР»СЊРєРѕ РЅР°РґРѕ СЃРґРІРЅСѓС‚СЊ СЃС‚СЂРѕРєСѓ, С‡С‚РѕР±С‹ РІ СЃРІРѕРµР№ area РѕРЅР° СЃС‚Р°Р»Р° РїРѕ С†РµРЅС‚СЂСѓ
 			cRetVal.nLineSpace = cXmlNode.AttributeOrDefaultGet<short>("line_cpace", 0);    
 			XmlNode cXNChild = cXmlNode.NodeGet("font");
             cRetVal.cFont = FontParse(cXNChild);

@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <template destroy="self">
 	<plugin file="/path/blender.dll" class="Blender">
-		<data request="yandex.weather" template="0" code="00000000-0000-0000-0000-000000000000" value="text1; text2; text3" interval="5000">
+		<data request="yandex.weather" template="0" code="00000000-0000-0000-0000-000000000000" value="city1; city2; city3" interval="5000">
 		</data>
 	</plugin>
 </template>

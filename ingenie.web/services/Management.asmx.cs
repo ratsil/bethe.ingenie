@@ -65,9 +65,13 @@ namespace ingenie.web.services
 		public void RestartServices()
 		{
 			try
-			{
-				string sFileName = @"c:\Program Files\replica\ingenie\server\restart\restart";
-				if (System.IO.File.Exists(sFileName + "!"))
+            {
+                (new Logger()).WriteNotice("RestartServices: [pref=" + ingenie.web.Preferences.cClientManagement?.sRestartFile + "]");
+                string sFileName = @"c:\Program Files\replica\ingenie\server\restart\restart";
+                if (ingenie.web.Preferences.cClientManagement != null)
+                    sFileName = ingenie.web.Preferences.cClientManagement.sRestartFile;
+
+                if (System.IO.File.Exists(sFileName + "!"))
 					System.IO.File.Move(sFileName + "!", sFileName);
 			}
 			catch (Exception ex)
@@ -75,5 +79,15 @@ namespace ingenie.web.services
 				(new Logger()).WriteError(ex);
 			}
 		}
-	}
+        [WebMethod(EnableSession = true)]
+        public void MgmtWriteNotice(string sText)
+        {
+            (new Logger()).WriteNotice(sText);
+        }
+        [WebMethod(EnableSession = true)]
+        public void MgmtWriteError(string sEx)
+        {
+            (new Logger()).WriteError(sEx);
+        }
+    }
 }

@@ -218,51 +218,57 @@ namespace ingenie.initiator
                             (new helpers.Logger()).WriteError(ex);
                         }
                     }
-                    if (null != Preferences.sRestartFile && System.IO.File.Exists(Preferences.sRestartFile))
+                    if (!Preferences.sRestartFile.IsNullOrEmpty())
                     {
-                        (new Logger()).WriteNotice("try to restart something - see answer file in [" + System.IO.Path.GetDirectoryName(Preferences.sRestartFile) + "]");
-                        string sAnswer = "processes detected:\n";
-                        foreach (ProcessTarget cP in _aProcesses)
-                            sAnswer += "[arg=" + cP.sArguments + "][name=" + cP.sName + "]\n";
-                        Exception cCurrentException = null;
-                        try
+                        string sRestartFNWE = sio.Path.GetFileNameWithoutExtension(Preferences.sRestartFile);
+                        string sFirstRestartFN = sio.Directory.GetFiles(sio.Path.GetDirectoryName(Preferences.sRestartFile)).FirstOrDefault(o => sio.Path.GetFileName(o).StartsWith(sRestartFNWE) && !o.EndsWith("!"));
+                        string sFirstRestartName = sio.Path.GetFileName(sFirstRestartFN);
+                        if (System.IO.File.Exists(sFirstRestartFN))
                         {
-                            string[] aLines = System.IO.File.ReadLines(Preferences.sRestartFile).ToArray();
-                            foreach (string sRestart in aLines)
+                            (new Logger()).WriteNotice("try to restart something - see answer file in [" + System.IO.Path.GetDirectoryName(sFirstRestartFN) + "]");
+                            string sAnswer = "processes detected:\n";
+                            foreach (ProcessTarget cP in _aProcesses)
+                                sAnswer += "[arg=" + cP.sArguments + "][name=" + cP.sName + "]\n";
+                            Exception cCurrentException = null;
+                            try
                             {
-                                if (sRestart.IsNullOrEmpty() || sRestart.StartsWith("#"))
-                                    continue;
-                                sAnswer += "read lines: [" + sRestart + "]\n";
-                                if (sRestart.ToLower() == "iis")
+                                string[] aLines = System.IO.File.ReadLines(sFirstRestartFN).ToArray();
+                                foreach (string sRestart in aLines)
                                 {
-                                    RestartIIS();
-                                    sAnswer += "restarted IIS\n";
-                                    continue;
+                                    if (sRestart.IsNullOrEmpty() || sRestart.StartsWith("#"))
+                                        continue;
+                                    sAnswer += "read lines: [" + sRestart + "]\n";
+                                    if (sRestart.ToLower() == "iis")
+                                    {
+                                        RestartIIS();
+                                        sAnswer += "restarted IIS\n";
+                                        continue;
+                                    }
+                                    ProcessTarget cPT = _aProcesses.FirstOrDefault(o => o.sArguments == sRestart);
+                                    if (null != cPT)
+                                    {
+                                        (new helpers.Logger()).WriteDebug("try_to_stop_process = [" + cPT.sArguments + "]");
+                                        cPT.Stop();
+                                        sAnswer += "restarted " + sRestart + "\n";
+                                    }
                                 }
-                                ProcessTarget cPT = _aProcesses.FirstOrDefault(o => o.sArguments == sRestart);
-                                if (null != cPT)
-                                {
-                                    (new helpers.Logger()).WriteDebug("try_to_stop_process = [" + cPT.sArguments + "]");
-                                    cPT.Stop();
-                                    sAnswer += "restarted " + sRestart + "\n";
-                                }
+                                //System.Diagnostics.Process.Start(@"c:\Program Files\replica\ingenie\server\restart\ingenie.restart.exe");
                             }
-                            //System.Diagnostics.Process.Start(@"c:\Program Files\replica\ingenie\server\restart\ingenie.restart.exe");
-                        }
-                        catch (Exception ex)
-                        {
-                            cCurrentException = ex;
-                            (new helpers.Logger()).WriteError(ex);
-                        }
-                        string sFileAnswer = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Preferences.sRestartFile), "answer");
+                            catch (Exception ex)
+                            {
+                                cCurrentException = ex;
+                                (new helpers.Logger()).WriteError(ex);
+                            }
+                            string sFileAnswer = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Preferences.sRestartFile), "answer_" + sFirstRestartName);
 
-                        if (cCurrentException == null)
-                            sAnswer += "done successfully\n";
-                        else
-                            sAnswer += "ERRORS! \n" + cCurrentException.Message + "\n" + (null == cCurrentException.InnerException ? "" : cCurrentException.InnerException.Message);
-                        System.IO.File.WriteAllText(sFileAnswer, sAnswer);
+                            if (cCurrentException == null)
+                                sAnswer += "done successfully\n";
+                            else
+                                sAnswer += "ERRORS! \n" + cCurrentException.Message + "\n" + (null == cCurrentException.InnerException ? "" : cCurrentException.InnerException.Message);
+                            System.IO.File.WriteAllText(sFileAnswer, sAnswer);
 
-                        System.IO.File.Move(Preferences.sRestartFile, Preferences.sRestartFile + "!");
+                            System.IO.File.Move(sFirstRestartFN, sFirstRestartFN + "!");
+                        }
                     }
                     System.Threading.Thread.Sleep(1000);
                 }

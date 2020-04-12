@@ -143,7 +143,7 @@ namespace ingenie.plugins
         {
             try
             {
-				XmlNode cXNData = ingenie.plugins.Data.Get("polls.zed", 0, _cPreferences.cPoll.sName);
+				XmlNode cXNData = helpers.data.Data.Get("polls.zed", 0, _cPreferences.cPoll.sName);
 				Preferences.Poll.Candidate[] aCandidates = _cPreferences.cPoll.aCandidates;
 				uint[] aVotes = cXNData.NodesGet("item").
 					Select(o => new Preferences.Poll.Candidate() { sName = o.AttributeValueGet("name").ToLower(), nVotesQty = o.AttributeGet<uint>("votes") }).

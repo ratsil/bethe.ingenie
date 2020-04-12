@@ -79,7 +79,7 @@ namespace ingenie.plugins
             {
                 _cPreferences._bExists = true;
 
-                XmlNode cXNData = ingenie.plugins.Data.Get(_sRequest, _nTemplate, _sValue);
+                XmlNode cXNData = helpers.data.Data.Get(_sRequest, _nTemplate, _sValue);
                 XmlNode[] aItems = cXNData.NodesGet("item");
                 Cache cCached;
 				bool bClear = false;

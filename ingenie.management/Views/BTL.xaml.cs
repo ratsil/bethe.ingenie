@@ -58,14 +58,22 @@ namespace ingenie.management.Views
 
         void _cIG_BaetylusEffectsInfoGetCompleted(object sender, BaetylusEffectsInfoGetCompletedEventArgs e)
         {
-            if (null != e.Result)
+            try
             {
-                _ui_dgBTLEffects.ItemsSource = null;
-                _ui_dgBTLEffects.ItemsSource = _aEffectsInfo = e.Result;
+                if (null != e.Result)
+                {
+                    _cIG.MgmtWriteNoticeAsync("_cIG_BaetylusEffectsInfoGetCompleted: [e.res=" + e?.Result?.Length + "]");
+                    _ui_dgBTLEffects.ItemsSource = null;
+                    _ui_dgBTLEffects.ItemsSource = _aEffectsInfo = e.Result;
+                }
+            }
+            catch(Exception ex)
+            {
+                _cIG.MgmtWriteErrorAsync(ex.ToString());
             }
         }
 
-		void _cIG_RestartServicesCompleted(object sender, System.ComponentModel.AsyncCompletedEventArgs e)
+        void _cIG_RestartServicesCompleted(object sender, System.ComponentModel.AsyncCompletedEventArgs e)
 		{
 			string sMess;
 			if (null == e.Error)

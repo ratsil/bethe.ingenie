@@ -6,6 +6,7 @@ using System.Web;
 using BTL.Play;
 using btl = BTL.Play;
 using helpers;
+using helpers.data;
 using System.Xml;
 using helpers.extensions;
 using System.Text;
@@ -14,53 +15,6 @@ namespace ingenie.plugins
 {
 	class Preferences
 	{
-		public class WeatherItem
-		{
-			public int nID;
-			public string sCity;
-			public string sTime;
-			public string sTemperature;
-			public string sIcon;
-			public string sDetales;
-			public string sRegion;
-			private WeatherItem(XmlNode cXmlNode)
-			{
-				nID = cXmlNode.AttributeGet<int>("output");
-				string sValue;
-				foreach (XmlNode cXN in cXmlNode.SelectNodes("item"))
-				{
-					sValue = cXN.FirstChild.Value.Trim();
-					switch (cXN.AttributeValueGet("id"))
-					{
-						case "POST_CITY":
-							sCity = sValue;
-							break;
-						case "POST_TIME":
-							sTime = sValue;
-							break;
-						case "POST_TEMPERATURE":
-							sTemperature = sValue;
-							break;
-						case "POST_ICON":
-							sIcon = sValue;
-							break;
-						case "POST_DETAILS":
-							sDetales = sValue;
-							break;
-						case "POST_REGION":
-							sRegion = sValue;
-							break;
-					}
-				}
-			}
-			static public List<WeatherItem> LoadItems(XmlNode cXmlNode)
-			{
-				List<WeatherItem> aRetVal = new List<WeatherItem>();
-				foreach (XmlNode cXN in cXmlNode.SelectNodes("item"))
-					aRetVal.Add(new WeatherItem(cXN));
-				return aRetVal;
-			}
-		}
 		public class DataXML
 		{
 			public string sRequest;
@@ -244,13 +198,13 @@ namespace ingenie.plugins
 		}
 
 		public btl.Roll cRoll { get { return _cRoll; } }
-		public List<WeatherItem> aWeatherItems { get { return _aWeatherItems; } }
+		public List<Data.WeatherItem> aWeatherItems { get { return _aWeatherItems; } }
 		public Dictionary<string, Item> ahItems { get { return _ahItems; } }
 
 		private btl.Roll _cRoll;
 		private Dictionary<string, Item> _ahItems;
 
-		private List<WeatherItem> _aWeatherItems;
+		private List<Data.WeatherItem> _aWeatherItems;
 		
 		public Preferences(string sData)
 		{
@@ -259,7 +213,7 @@ namespace ingenie.plugins
 			XmlNode cXmlNode = cXmlDocument.NodeGet("data");
 
 			DataXML cSourceData = new DataXML(cXmlNode);
-			_aWeatherItems = WeatherItem.LoadItems(cSourceData.cYandexData);
+			_aWeatherItems = Data.WeatherItem.LoadItems(cSourceData.cYandexData);
 			if (_aWeatherItems.Count < 2)
 				throw new Exception("There are must be more than 1 weather items. Add some other cities");
 

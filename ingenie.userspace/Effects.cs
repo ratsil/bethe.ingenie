@@ -2022,12 +2022,12 @@ namespace ingenie.userspace
 		static Helper()
 		{
 			_bInitialized = false;
-			LockHelperStatic = new object();
+			oLock = new object();
 		}
-		static private object LockHelperStatic;
+		static private object oLock;
         static public void InitializeTCPChannel()
 		{
-			lock (LockHelperStatic)
+			lock (oLock)
 				if (!_bInitialized)
 				{
 					BinaryServerFormatterSinkProvider cBinaryServerFormatterSinkProvider = new BinaryServerFormatterSinkProvider();
@@ -2062,9 +2062,9 @@ namespace ingenie.userspace
         {
             return cHelper.FileExist(sFileName);
         }
-		public bool FileCopy(string sSource, string sTarget)
+		public void FileCopyAsync(string sSource, string sTarget)
 		{
-			return cHelper.FileCopy(sSource, sTarget);
+			cHelper.FileCopyAsync(sSource, sTarget);
 		}
 		public bool FileMove(string sSource, string sTarget)
 		{
@@ -2082,7 +2082,11 @@ namespace ingenie.userspace
 		{
 			return cHelper.FileNamesGet(sFolder, aExtensions);
 		}
-		public string[] DirectoriesNamesGet(string sFolder)
+        public string[] FileNamesGet(string sFolder, string[] aExtensions, bool bAddDate)
+        {
+            return cHelper.FileNamesGet(sFolder, aExtensions, bAddDate);
+        }
+        public string[] DirectoriesNamesGet(string sFolder)
 		{
 			return cHelper.DirectoriesNamesGet(sFolder);
 		}
@@ -2092,9 +2096,9 @@ namespace ingenie.userspace
         {
             return cHelper.CopyFileExtendedCreate(sSource, sTarget, nDelayMiliseconds, nPeriodToDelayMiliseconds, nFramesDur);
         }
-        public bool CopyFileExtendedDoCopy(bool bResetLastWriteTime)
+        public void CopyFileExtendedDoCopyAsync(bool bResetLastWriteTime)
         {
-            return cHelper.CopyFileExtendedDoCopy(bResetLastWriteTime);
+            cHelper.CopyFileExtendedDoCopyAsync(bResetLastWriteTime);
         }
         public float CopyFileExtendedProgressPercentGet()
         {
@@ -2104,6 +2108,11 @@ namespace ingenie.userspace
         {
             return cHelper.CopyFileExtendedIsNull();
         }
+        public bool? ExCopyResult()
+        {
+            return cHelper.ExCopyResult();
+        }
+
 
         public List<EffectInfo> BaetylusEffectsInfoGet()
         {

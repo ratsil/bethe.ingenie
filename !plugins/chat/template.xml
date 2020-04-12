@@ -92,9 +92,9 @@
           </promo>
         </promos>
       </vip>
-      <roll layer="200" speed="250">
+      <roll layer="200" speed="100" correct_delay="0" cuda="false" use_history="300" exceptions="(1,2,3,4,5):(12,13,14,15,16,17,18)" >
         <!-- layernumber - это номер слоя от бэкграунда - в общем случае layernumber = [0-99] для основы, [100-199] для плашек, [200-299] для титров -->
-        <holds line="2" pause="5" />
+        <holds line="3.5" pause="1" />
         <masks>
           <single>/path</single>
           <multi>/path</multi>
@@ -153,6 +153,10 @@
             <transition>/path/standby/transition</transition>
           </standby>
         </show>
+				<out layer="102">
+					<size left="140" top="842" width="1631" height="258" />
+					<animation>/path/out/fall</animation>
+				</out>
       </mat>
 			<database server="127.0.0.1" port="5432" name="replica" user="user" password="" timeout="240" />
     </data>

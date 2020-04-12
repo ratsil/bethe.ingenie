@@ -51,6 +51,26 @@
       <s:element name="RestartServicesResponse">
         <s:complexType />
       </s:element>
+      <s:element name="MgmtWriteNotice">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="sText" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="MgmtWriteNoticeResponse">
+        <s:complexType />
+      </s:element>
+      <s:element name="MgmtWriteError">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="sEx" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="MgmtWriteErrorResponse">
+        <s:complexType />
+      </s:element>
     </s:schema>
   </wsdl:types>
   <wsdl:message name="BaetylusEffectsInfoGetSoapIn">
@@ -71,6 +91,18 @@
   <wsdl:message name="RestartServicesSoapOut">
     <wsdl:part name="parameters" element="tns:RestartServicesResponse" />
   </wsdl:message>
+  <wsdl:message name="MgmtWriteNoticeSoapIn">
+    <wsdl:part name="parameters" element="tns:MgmtWriteNotice" />
+  </wsdl:message>
+  <wsdl:message name="MgmtWriteNoticeSoapOut">
+    <wsdl:part name="parameters" element="tns:MgmtWriteNoticeResponse" />
+  </wsdl:message>
+  <wsdl:message name="MgmtWriteErrorSoapIn">
+    <wsdl:part name="parameters" element="tns:MgmtWriteError" />
+  </wsdl:message>
+  <wsdl:message name="MgmtWriteErrorSoapOut">
+    <wsdl:part name="parameters" element="tns:MgmtWriteErrorResponse" />
+  </wsdl:message>
   <wsdl:portType name="ManagementSoap">
     <wsdl:operation name="BaetylusEffectsInfoGet">
       <wsdl:input message="tns:BaetylusEffectsInfoGetSoapIn" />
@@ -83,6 +115,14 @@
     <wsdl:operation name="RestartServices">
       <wsdl:input message="tns:RestartServicesSoapIn" />
       <wsdl:output message="tns:RestartServicesSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="MgmtWriteNotice">
+      <wsdl:input message="tns:MgmtWriteNoticeSoapIn" />
+      <wsdl:output message="tns:MgmtWriteNoticeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="MgmtWriteError">
+      <wsdl:input message="tns:MgmtWriteErrorSoapIn" />
+      <wsdl:output message="tns:MgmtWriteErrorSoapOut" />
     </wsdl:operation>
   </wsdl:portType>
   <wsdl:binding name="ManagementSoap" type="tns:ManagementSoap">
@@ -114,6 +154,24 @@
         <soap:body use="literal" />
       </wsdl:output>
     </wsdl:operation>
+    <wsdl:operation name="MgmtWriteNotice">
+      <soap:operation soapAction="http://replica/ig/services/Cues.asmx/MgmtWriteNotice" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="MgmtWriteError">
+      <soap:operation soapAction="http://replica/ig/services/Cues.asmx/MgmtWriteError" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
   </wsdl:binding>
   <wsdl:binding name="ManagementSoap12" type="tns:ManagementSoap">
     <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
@@ -137,6 +195,24 @@
     </wsdl:operation>
     <wsdl:operation name="RestartServices">
       <soap12:operation soapAction="http://replica/ig/services/Cues.asmx/RestartServices" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="MgmtWriteNotice">
+      <soap12:operation soapAction="http://replica/ig/services/Cues.asmx/MgmtWriteNotice" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="MgmtWriteError">
+      <soap12:operation soapAction="http://replica/ig/services/Cues.asmx/MgmtWriteError" style="document" />
       <wsdl:input>
         <soap12:body use="literal" />
       </wsdl:input>

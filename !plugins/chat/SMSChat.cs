@@ -219,14 +219,14 @@ namespace ingenie.plugins
                                     while (0 < aMessages.Count)
                                     {
                                         cSMS = aMessages.Dequeue();
-                                        if (_aQueuedIDs.Contains(cSMS.ID) && (cSMS.eType != SMS.Type.Promo || cSMS.ID == -123456))
+                                        if (_aQueuedIDs.Contains(cSMS.ID) && (cSMS.eType != SMS.Type.Repeat && cSMS.eType != SMS.Type.Promo || cSMS.ID == -123456))
                                             continue;
-                                        if (SMS.Type.Common == cSMS.eType)
+                                        if (SMS.Type.Common == cSMS.eType || cSMS.eType == SMS.Type.Repeat)
                                             _aqMessages.Enqueue(cSMS);
                                         else
                                             _aqMessagesVIP.Enqueue(cSMS);
                                         nRetVal++;
-                                        if (cSMS.eType != SMS.Type.Promo)
+                                        if (cSMS.eType != SMS.Type.Promo && cSMS.eType != SMS.Type.Repeat)
                                             _aQueuedIDs.Add(cSMS.ID);
                                     }
                                 }
@@ -289,9 +289,9 @@ namespace ingenie.plugins
                                 if (null != OnRollShow)
                                     OnRollShow();
 								bStandby = false;
-							}
-							if (!bStandby && 7 > _cRoll.nEffectsQty && (0 < _aqMessages.Count || 0 < _aqMessagesVIP.Count))
-								MessagesAddToRoll();
+                            }
+                            if (!bStandby && 7 > _cRoll.nEffectsQty && (0 < _aqMessages.Count || 0 < _aqMessagesVIP.Count))
+                                MessagesAddToRoll();
 						}
 
 						//GC.Collect
@@ -661,30 +661,38 @@ namespace ingenie.plugins
 				try
 				{
 					if (null != cEffect && null != cEffect.oTag)
-					{
-						SMS cSMS = null;
-						if (cEffect.oTag is SMS)
-						{
-							cSMS = (SMS)cEffect.oTag;
-							lock (_aqMessageIDsDisplayed)
-							{
-								(new Logger()).WriteDebug3("SMS displayed: " + cSMS.ID);
-								_aqMessageIDsDisplayed.Enqueue(cSMS.ID);
-								cSMS.Dispose();
-							}
-							if (SMS.Type.Photo == cSMS.eType && null != OnPhotoHide)
-								OnPhotoHide();
-						}
-						if (cEffect is Composite)
-						{
-							Composite cC = (Composite)cEffect;
-							if (cC.eStatus == EffectStatus.Running)
-								cC.Stop();
-							cC.Dispose();
-							(new Logger()).WriteDebug3("composite disposing: " + cEffect.nID);
-						}
-					}
-				}
+                    {
+                        SMS cSMS = null;
+                        if (cEffect.oTag is SMS)
+                        {
+                            cSMS = (SMS)cEffect.oTag;
+                            lock (_aqMessageIDsDisplayed)
+                            {
+                                if (cSMS.eType == SMS.Type.Repeat)
+                                {
+                                    (new Logger()).WriteDebug("SMS repeated: " + cSMS.ID);
+                                    _aqMessageIDsDisplayed.Enqueue(-123456);
+                                }
+                                else
+                                {
+                                    (new Logger()).WriteDebug("SMS displayed: " + cSMS.ID);
+                                    _aqMessageIDsDisplayed.Enqueue(cSMS.ID);
+                                }
+                                cSMS.Dispose();
+                            }
+                            if (SMS.Type.Photo == cSMS.eType && null != OnPhotoHide)
+                                OnPhotoHide();
+                        }
+                        if (cEffect is Composite)
+                        {
+                            Composite cC = (Composite)cEffect;
+                            if (cC.eStatus == EffectStatus.Running)
+                                cC.Stop();
+                            cC.Dispose();
+                            (new Logger()).WriteDebug3("composite disposing: " + cEffect.nID);
+                        }
+                    }
+                }
 				catch (Exception ex)   // замена пустого кетча
 				{
 					(new Logger()).WriteError(ex);
@@ -770,6 +778,7 @@ namespace ingenie.plugins
                     _cInfoCrawl.bStopOnEmptyQueue = true;
                     _cInfoCrawl.bTurnOffDynamicQueue = false;
                     _cInfoCrawl.nQueueSizeMax = 30;
+
 					_cInfoCrawl.EffectIsOffScreen += new ContainerVideoAudio.EventDelegate(_cInfoCrawl_EffectIsOffScreen);
 					_cInfoCrawl.EffectAdd(_cCrawlText, null, false, _cPreferences.bRenderFields);
 					_cInfoCrawl.Prepare();

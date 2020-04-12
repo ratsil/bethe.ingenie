@@ -213,7 +213,8 @@ namespace ingenie.plugins
             Common,
             VIP,
             Promo,
-            Photo
+            Photo,
+            Repeat,
         }
 
         public Preferences.SMS cPreferences;

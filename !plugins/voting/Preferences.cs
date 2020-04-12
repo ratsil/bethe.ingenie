@@ -6,6 +6,7 @@ using System.Web;
 using BTL.Play;
 using btl = BTL.Play;
 using helpers;
+using helpers.data;
 using System.Xml;
 using helpers.extensions;
 using System.Text;
@@ -22,7 +23,7 @@ namespace ingenie.plugins
             public class Candidate
 			{
 				public string sName;
-				public string sImage;
+                public string sImage;
 				public string sDescription;
                 private int _nVotesQtyNew;
                 private int _nVotesQtyOld;
@@ -55,7 +56,8 @@ namespace ingenie.plugins
                 }
             }
             public string sName;
-			public DateTime dtLast;
+            public string sApiUrl;
+            public DateTime dtLast;
 			public Candidate[] aCandidates;
 			public string[] aDescription;
             public string[] aVotesNew
@@ -130,6 +132,7 @@ namespace ingenie.plugins
             public Poll(XmlNode cNode)
             {
                 sName = cNode.AttributeValueGet("name", false);
+                sApiUrl = cNode.AttributeOrDefaultGet<string>("api_url", "").ToLower();
                 dtLast = cNode.AttributeOrDefaultGet<DateTime>("dt", DateTime.MinValue);
 
                 aDescription = cNode.NodeGet("description").InnerText.Remove("\r").Split('\n').Select(o => o.Trim()).Where(o => !o.IsNullOrEmpty()).ToArray();
@@ -222,11 +225,14 @@ namespace ingenie.plugins
                             _cRollImages.stArea = _cRollImages.stArea.Move(_cGlobalOffset);
                             break;
                         case "top":
+                            PollUpdate();
                             cXmlDocument = new XmlDocument();
-                            sOuterXML = cNode.OuterXml.Replace("%%TOP_TXT1%%", _cPoll.aDescription[0]);
-                            sOuterXML = sOuterXML.Replace("%%TOP_TXT2_1%%", _cPoll.aDescription[1]);
-                            sOuterXML = sOuterXML.Replace("%%TOP_TXT2_2%%", _cPoll.aDescription[2]);
-                            sOuterXML = sOuterXML.Replace("%%TOP_TXT2_3%%", _cPoll.aDescription[3]);
+                            sOuterXML = cNode.OuterXml.Replace("%%TOP_TXT1%%", _cPoll.aDescription[0].ForXML());
+                            string sNameArt = _nTemplate == 0 ? _cPoll.aDescription[1] : _cPoll.aCandidates[0].sName;
+                            sOuterXML = sOuterXML.Replace("%%TOP_TXT2_1%%", sNameArt.ForXML());
+                            sOuterXML = sOuterXML.Replace("%%TOP_TXT2_2%%", _cPoll.aDescription[2].ForXML());
+                            sNameArt = _nTemplate == 0 ? _cPoll.aDescription[1] : _cPoll.aCandidates[1].sName;
+                            sOuterXML = sOuterXML.Replace("%%TOP_TXT2_3%%", sNameArt.ForXML());
                             cXmlDocument.LoadXml(sHeadXML + sOuterXML);
                             cNodeRoll = cXmlDocument.NodeGet("roll");
                             _nTextInTopGap = cNodeRoll.AttributeOrDefaultGet<int>("_text_in_top_gap", 30);
@@ -237,11 +243,20 @@ namespace ingenie.plugins
                             Text cLeft = (Text)_cRollTop.EffectGet("top_left");
                             Text cMid = (Text)_cRollTop.EffectGet("top_mid");
                             Text cRight = (Text)_cRollTop.EffectGet("top_right");
-                            int nWTotal = cLeft.stArea.nWidth + cMid.stArea.nWidth + cRight.stArea.nWidth + 2 * _nTextInTopGap;
-                            short nLeft = (short)((_cRollTop.stArea.nWidth - nWTotal) / 2);
-                            cLeft.cDock.cOffset.nLeft += nLeft;
-                            cMid.cDock.cOffset.nLeft += (short)(nLeft + cLeft.stArea.nWidth + _nTextInTopGap);
-                            cRight.cDock.cOffset.nLeft += (short)(nLeft + cLeft.stArea.nWidth + cMid.stArea.nWidth + 2 * _nTextInTopGap);
+
+                            short nMidLeft = (short)((_cRollTop.stArea.nWidth - cMid.stArea.nWidth) / 2);
+                            cMid.cDock.cOffset.nLeft += nMidLeft;
+                            short nLeftLeft = (short)(nMidLeft - _nTextInTopGap - cLeft.stArea.nWidth);
+                            cLeft.cDock.cOffset.nLeft += nLeftLeft;
+                            short nRightLeft = (short)(nMidLeft + cMid.stArea.nWidth + _nTextInTopGap);
+                            cRight.cDock.cOffset.nLeft += nRightLeft;
+
+                            //int nWTotal = cLeft.stArea.nWidth + cMid.stArea.nWidth + cRight.stArea.nWidth + 2 * _nTextInTopGap;
+                            //short nLeft = (short)((_cRollTop.stArea.nWidth - nWTotal) / 2);
+                            //cLeft.cDock.cOffset.nLeft += nLeft;
+                            //cMid.cDock.cOffset.nLeft += (short)(nLeft + cLeft.stArea.nWidth + _nTextInTopGap);
+                            //cRight.cDock.cOffset.nLeft += (short)(nLeft + cLeft.stArea.nWidth + cMid.stArea.nWidth + 2 * _nTextInTopGap);
+
                             _cRollTop.stArea = _cRollTop.stArea.Move(_cGlobalOffset);
                             break;
                         case "bot":
@@ -277,17 +292,31 @@ namespace ingenie.plugins
 
         public bool PollUpdate()
 		{
-            XmlNode cVotingData = Data.Get(_sRequest, _nTemplate, _cPoll.sName);
+            string sParam3 = _nTemplate == 0 ? _cPoll.sName : _cPoll.sApiUrl;
+            XmlNode cVotingData = Data.Get(_sRequest, _nTemplate, sParam3);
             string sName;
             int nLeft = -1, nRight = -1;
             bool bRetVal = false;
+            int nI = 0;
             foreach (XmlNode cNode in cVotingData.NodesGet("item"))
             {
-                sName = cNode.AttributeValueGet("name");
-                if (sName == _cPoll.aCandidates[0].sName)
-                    nLeft = cNode.AttributeGet<int>("votes");
-                else if (sName == _cPoll.aCandidates[1].sName)
-                    nRight = cNode.AttributeGet<int>("votes");
+                if (_nTemplate == 0)
+                {
+                    sName = cNode.AttributeValueGet("name");
+                    if (sName == _cPoll.aCandidates[0].sName)
+                        nLeft = cNode.AttributeGet<int>("votes");
+                    else if (sName == _cPoll.aCandidates[1].sName)
+                        nRight = cNode.AttributeGet<int>("votes");
+                }
+                else
+                {
+                    _cPoll.aCandidates[nI].sName = cNode.AttributeValueGet("name");
+                    if (nI==0)
+                        nLeft = cNode.AttributeGet<int>("votes");
+                    else 
+                        nRight = cNode.AttributeGet<int>("votes");
+                }
+                nI++;
             }
             if (nLeft < 0 || nRight < 0)
             {

@@ -368,7 +368,8 @@
 			<description>
 				POLL DESCRIPTION TEXT LINE1
 				POLL DESCRIPTION TEXT LINE2
-				POLL DESCRIPTION TEXT LINEN
+				POLL DESCRIPTION TEXT LINE3
+				POLL DESCRIPTION TEXT LINE4
 			</description>
 			<candidate name="OPTION1" image="image1.jpg" description="OPTION1 DESCRIPTION TEXT" />
 			<candidate name="OPTION2" image="image2.jpg" description="OPTION2 DESCRIPTION TEXT" />

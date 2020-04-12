@@ -369,7 +369,7 @@ namespace ingenie.web.services
                         System.Threading.Thread.Sleep(100); // to avoid conflict with too fast jobdone and mreCopyFinished
 
                         try { cHelper.FileExists(sFilePauseCopying); } // cHelper is lost occasionally
-                        catch (Exception ex) { cHelper = new userspace.Helper(); (new Logger()).WriteError("catch-2", ex); }
+                        catch (Exception ex) { cHelper = new userspace.Helper(); /* (new Logger()).WriteError("catch-2", ex); // yes, it's here!    */ }
 
 #if DEBUG
                         cJob.sSource = cJob.sSource.Replace(@"\\airfs\clips01\", @"c:\storages\clips\");  // during debug \\-path is not acceptable  //DNF
@@ -405,7 +405,13 @@ namespace ingenie.web.services
                             cJob.bStarted = true;
                             cHelper.CopyFileExtendedCreate(cJob.sSource, cJob.sTarget + "!", IW.Preferences.nCopyDelayMiliseconds, IW.Preferences.nCopyPeriodToDelayMiliseconds, cJob.cPLI._nFramesQty);  // медленное копирование 
                         }
-                        bDoCopyRes = cHelper.CopyFileExtendedDoCopy(true);
+
+                        cHelper.CopyFileExtendedDoCopyAsync(true);
+                        do
+                        {
+                            Thread.Sleep(100);
+                        } while (cHelper.ExCopyResult() == null);
+                        bDoCopyRes = cHelper.ExCopyResult().Value;
 
                         if (cHelper.FileExists(cJob.sTarget + "!"))
                         {
@@ -733,6 +739,8 @@ namespace ingenie.web.services
             {
                 sFileAsset = null;
                 sFilePLI = null;
+                if (IW.Preferences.sCacheFolder.IsNullOrEmpty())
+                    return false;
                 long nPLIID = -1;
                 string sExtension = System.IO.Path.GetExtension(cItem.sFilenameFull);
                 if (cItem._cAdvertSCR != null)
@@ -1243,7 +1251,7 @@ namespace ingenie.web.services
 			try
 			{
 				userspace.Helper cHelper = new userspace.Helper();
-				aFilenames.AddRange(cHelper.FileNamesGet(sFilesFolder, aExtensions));
+				aFilenames.AddRange(cHelper.FileNamesGet(sFilesFolder, aExtensions, true));
 			}
 			catch (Exception ex)
 			{
@@ -1292,7 +1300,7 @@ namespace ingenie.web.services
             List<Advertisement> aItems;
             List<Advertisement> aRetVal = new List<Advertisement>();
             Advertisement cClip;
-            long nAssetID;
+            long nAssetID, nPLIID;
             Clip cClipTmp;
             string sPLIID = "";
 
@@ -1307,10 +1315,13 @@ namespace ingenie.web.services
                         {
                             sPLIID = System.IO.Path.GetFileNameWithoutExtension(sS);
                             sPLIID = sPLIID.StartsWith("_") ? sPLIID.Substring(1) : sPLIID;
-                            cClip = new Advertisement() { nPlaylistID = long.Parse(sPLIID), dtStartSoft = DateTime.Now };
-                            cClip.bCached = true;
-                            cClip.sCopyPercent = "ok";
-                            aRetVal.Add(cClip);
+                            if (long.TryParse(sPLIID, out nPLIID))
+                            {
+                                cClip = new Advertisement() { nPlaylistID = nPLIID, dtStartSoft = DateTime.Now };
+                                cClip.bCached = true;
+                                cClip.sCopyPercent = "ok";
+                                aRetVal.Add(cClip);
+                            }
                         }
                     }
                     catch (Exception ex)

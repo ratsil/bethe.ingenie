@@ -405,15 +405,19 @@ namespace ingenie.server
 			{
 				if (null != cEffectCover)
 				{
-					shared.Effect cEffectShared = null;
-					cLogger.WriteDebug4("effect:event:" + eEventType.ToString() + ":lock:before [ec hc:" + cEffectCover.GetHashCode() + " info: " + cEffectCover.sInfo + "]");
-					lock (_ahEffects)
-						cEffectShared = _ahEffects.FirstOrDefault(row => row.Value == cEffectCover).Key;
-					cLogger.WriteDebug4("effect:event:" + eEventType.ToString() + ":lock:after [ec hc:" + cEffectCover.GetHashCode() + "]");
-					if (null != cEffectShared)
-					{
-						cLogger.WriteDebug4("effect:event:" + eEventType.ToString() + ":raise:before [ec hc:" + cEffectCover.GetHashCode() + "][shared hc:" + cEffectShared.GetHashCode() + "]");
-						cEffectShared.OnEffectEventRaised(eEventType);
+                    shared.Effect cEffectShared = null;
+                    cLogger.WriteDebug4("effect:event:" + eEventType.ToString() + ":lock:before [ec hc:" + cEffectCover.GetHashCode() + " info: " + cEffectCover.sInfo + "]");
+                    if (shared.EffectEventType.stopped == eEventType && cEffectCover.sType == "playlist")
+                    {
+                        ((BTL.Play.Playlist)cEffectCover.oEffect).StopAllItems();
+                    }
+                    lock (_ahEffects)
+                        cEffectShared = _ahEffects.FirstOrDefault(row => row.Value == cEffectCover).Key;
+                    cLogger.WriteDebug4("effect:event:" + eEventType.ToString() + ":lock:after [ec hc:" + cEffectCover.GetHashCode() + "]");
+                    if (null != cEffectShared)
+                    {
+                        cLogger.WriteDebug4("effect:event:" + eEventType.ToString() + ":raise:before [ec hc:" + cEffectCover.GetHashCode() + "][shared hc:" + cEffectShared.GetHashCode() + "]");
+                        cEffectShared.OnEffectEventRaised(eEventType);
 						cLogger.WriteDebug4("effect:event:" + eEventType.ToString() + ":raise:after [ec hc:" + cEffectCover.GetHashCode() + "][shared hc:" + cEffectShared.GetHashCode() + "]");
 					}
 					else
@@ -713,15 +717,15 @@ namespace ingenie.server
 				{
 					if (_ahEffects.ContainsKey(cEffect))
 						cEffectCover = _ahEffects[cEffect];
-				}
-				if (null != cEffectCover)
-				{
-					if (BTL.EffectStatus.Stopped != cEffectCover.eStatus)
-					{
-						cEffectCover.Stop();
-						bRetVal = true;
-					}
-					else
+                }
+                if (null != cEffectCover)
+                {
+                    if (BTL.EffectStatus.Stopped != cEffectCover.eStatus)
+                    {
+                        cEffectCover.Stop();
+                        bRetVal = true;
+                    }
+                    else
 						(new Logger()).WriteDebug2("stop: указанный эффект уже остановлен [hc:" + cEffect.GetHashCode() + "]");
 				}
 				else

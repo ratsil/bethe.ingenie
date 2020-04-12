@@ -83,7 +83,7 @@ namespace ingenie.plugins
                     cE.SimultaneousSet(nSimulID, nEffectsQty);
                     cE.Prepare();
                     if (cE is btl.Roll && nI++ < 2)
-                        System.Threading.Thread.Sleep(200); // паузы при заборе фрагментов клипов, а то один раз дало сбой - не хватило времени эфиру взять клипы.
+                        System.Threading.Thread.Sleep(500); // паузы при заборе фрагментов клипов, а то один раз дало сбой - не хватило времени эфиру взять клипы. // устарело, но зазор пусть будет ))
                 }
                 lock (_oLockStatus)
                 {

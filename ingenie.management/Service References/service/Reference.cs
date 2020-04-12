@@ -129,6 +129,16 @@ namespace ingenie.management.service {
         System.IAsyncResult BeginRestartServices(System.AsyncCallback callback, object asyncState);
         
         void EndRestartServices(System.IAsyncResult result);
+        
+        [System.ServiceModel.OperationContractAttribute(AsyncPattern=true, Action="http://replica/ig/services/Cues.asmx/MgmtWriteNotice", ReplyAction="*")]
+        System.IAsyncResult BeginMgmtWriteNotice(ingenie.management.service.MgmtWriteNoticeRequest request, System.AsyncCallback callback, object asyncState);
+        
+        ingenie.management.service.MgmtWriteNoticeResponse EndMgmtWriteNotice(System.IAsyncResult result);
+        
+        [System.ServiceModel.OperationContractAttribute(AsyncPattern=true, Action="http://replica/ig/services/Cues.asmx/MgmtWriteError", ReplyAction="*")]
+        System.IAsyncResult BeginMgmtWriteError(ingenie.management.service.MgmtWriteErrorRequest request, System.AsyncCallback callback, object asyncState);
+        
+        ingenie.management.service.MgmtWriteErrorResponse EndMgmtWriteError(System.IAsyncResult result);
     }
     
     [System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -260,6 +270,128 @@ namespace ingenie.management.service {
         }
     }
     
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
+    [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+    [System.ServiceModel.MessageContractAttribute(IsWrapped=false)]
+    public partial class MgmtWriteNoticeRequest {
+        
+        [System.ServiceModel.MessageBodyMemberAttribute(Name="MgmtWriteNotice", Namespace="http://replica/ig/services/Cues.asmx", Order=0)]
+        public ingenie.management.service.MgmtWriteNoticeRequestBody Body;
+        
+        public MgmtWriteNoticeRequest() {
+        }
+        
+        public MgmtWriteNoticeRequest(ingenie.management.service.MgmtWriteNoticeRequestBody Body) {
+            this.Body = Body;
+        }
+    }
+    
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
+    [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+    [System.Runtime.Serialization.DataContractAttribute(Namespace="http://replica/ig/services/Cues.asmx")]
+    public partial class MgmtWriteNoticeRequestBody {
+        
+        [System.Runtime.Serialization.DataMemberAttribute(EmitDefaultValue=false, Order=0)]
+        public string sText;
+        
+        public MgmtWriteNoticeRequestBody() {
+        }
+        
+        public MgmtWriteNoticeRequestBody(string sText) {
+            this.sText = sText;
+        }
+    }
+    
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
+    [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+    [System.ServiceModel.MessageContractAttribute(IsWrapped=false)]
+    public partial class MgmtWriteNoticeResponse {
+        
+        [System.ServiceModel.MessageBodyMemberAttribute(Name="MgmtWriteNoticeResponse", Namespace="http://replica/ig/services/Cues.asmx", Order=0)]
+        public ingenie.management.service.MgmtWriteNoticeResponseBody Body;
+        
+        public MgmtWriteNoticeResponse() {
+        }
+        
+        public MgmtWriteNoticeResponse(ingenie.management.service.MgmtWriteNoticeResponseBody Body) {
+            this.Body = Body;
+        }
+    }
+    
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
+    [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+    [System.Runtime.Serialization.DataContractAttribute()]
+    public partial class MgmtWriteNoticeResponseBody {
+        
+        public MgmtWriteNoticeResponseBody() {
+        }
+    }
+    
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
+    [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+    [System.ServiceModel.MessageContractAttribute(IsWrapped=false)]
+    public partial class MgmtWriteErrorRequest {
+        
+        [System.ServiceModel.MessageBodyMemberAttribute(Name="MgmtWriteError", Namespace="http://replica/ig/services/Cues.asmx", Order=0)]
+        public ingenie.management.service.MgmtWriteErrorRequestBody Body;
+        
+        public MgmtWriteErrorRequest() {
+        }
+        
+        public MgmtWriteErrorRequest(ingenie.management.service.MgmtWriteErrorRequestBody Body) {
+            this.Body = Body;
+        }
+    }
+    
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
+    [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+    [System.Runtime.Serialization.DataContractAttribute(Namespace="http://replica/ig/services/Cues.asmx")]
+    public partial class MgmtWriteErrorRequestBody {
+        
+        [System.Runtime.Serialization.DataMemberAttribute(EmitDefaultValue=false, Order=0)]
+        public string sEx;
+        
+        public MgmtWriteErrorRequestBody() {
+        }
+        
+        public MgmtWriteErrorRequestBody(string sEx) {
+            this.sEx = sEx;
+        }
+    }
+    
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
+    [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+    [System.ServiceModel.MessageContractAttribute(IsWrapped=false)]
+    public partial class MgmtWriteErrorResponse {
+        
+        [System.ServiceModel.MessageBodyMemberAttribute(Name="MgmtWriteErrorResponse", Namespace="http://replica/ig/services/Cues.asmx", Order=0)]
+        public ingenie.management.service.MgmtWriteErrorResponseBody Body;
+        
+        public MgmtWriteErrorResponse() {
+        }
+        
+        public MgmtWriteErrorResponse(ingenie.management.service.MgmtWriteErrorResponseBody Body) {
+            this.Body = Body;
+        }
+    }
+    
+    [System.Diagnostics.DebuggerStepThroughAttribute()]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
+    [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+    [System.Runtime.Serialization.DataContractAttribute()]
+    public partial class MgmtWriteErrorResponseBody {
+        
+        public MgmtWriteErrorResponseBody() {
+        }
+    }
+    
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
     public interface ManagementSoapChannel : ingenie.management.service.ManagementSoap, System.ServiceModel.IClientChannel {
     }
@@ -324,6 +456,18 @@ namespace ingenie.management.service {
         
         private System.Threading.SendOrPostCallback onRestartServicesCompletedDelegate;
         
+        private BeginOperationDelegate onBeginMgmtWriteNoticeDelegate;
+        
+        private EndOperationDelegate onEndMgmtWriteNoticeDelegate;
+        
+        private System.Threading.SendOrPostCallback onMgmtWriteNoticeCompletedDelegate;
+        
+        private BeginOperationDelegate onBeginMgmtWriteErrorDelegate;
+        
+        private EndOperationDelegate onEndMgmtWriteErrorDelegate;
+        
+        private System.Threading.SendOrPostCallback onMgmtWriteErrorCompletedDelegate;
+        
         private BeginOperationDelegate onBeginOpenDelegate;
         
         private EndOperationDelegate onEndOpenDelegate;
@@ -382,6 +526,10 @@ namespace ingenie.management.service {
         public event System.EventHandler<BaetylusEffectStopCompletedEventArgs> BaetylusEffectStopCompleted;
         
         public event System.EventHandler<System.ComponentModel.AsyncCompletedEventArgs> RestartServicesCompleted;
+        
+        public event System.EventHandler<System.ComponentModel.AsyncCompletedEventArgs> MgmtWriteNoticeCompleted;
+        
+        public event System.EventHandler<System.ComponentModel.AsyncCompletedEventArgs> MgmtWriteErrorCompleted;
         
         public event System.EventHandler<System.ComponentModel.AsyncCompletedEventArgs> OpenCompleted;
         
@@ -547,6 +695,122 @@ namespace ingenie.management.service {
             base.InvokeAsync(this.onBeginRestartServicesDelegate, null, this.onEndRestartServicesDelegate, this.onRestartServicesCompletedDelegate, userState);
         }
         
+        [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+        System.IAsyncResult ingenie.management.service.ManagementSoap.BeginMgmtWriteNotice(ingenie.management.service.MgmtWriteNoticeRequest request, System.AsyncCallback callback, object asyncState) {
+            return base.Channel.BeginMgmtWriteNotice(request, callback, asyncState);
+        }
+        
+        [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+        private System.IAsyncResult BeginMgmtWriteNotice(string sText, System.AsyncCallback callback, object asyncState) {
+            ingenie.management.service.MgmtWriteNoticeRequest inValue = new ingenie.management.service.MgmtWriteNoticeRequest();
+            inValue.Body = new ingenie.management.service.MgmtWriteNoticeRequestBody();
+            inValue.Body.sText = sText;
+            return ((ingenie.management.service.ManagementSoap)(this)).BeginMgmtWriteNotice(inValue, callback, asyncState);
+        }
+        
+        [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+        ingenie.management.service.MgmtWriteNoticeResponse ingenie.management.service.ManagementSoap.EndMgmtWriteNotice(System.IAsyncResult result) {
+            return base.Channel.EndMgmtWriteNotice(result);
+        }
+        
+        [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+        private void EndMgmtWriteNotice(System.IAsyncResult result) {
+            ingenie.management.service.MgmtWriteNoticeResponse retVal = ((ingenie.management.service.ManagementSoap)(this)).EndMgmtWriteNotice(result);
+        }
+        
+        private System.IAsyncResult OnBeginMgmtWriteNotice(object[] inValues, System.AsyncCallback callback, object asyncState) {
+            string sText = ((string)(inValues[0]));
+            return this.BeginMgmtWriteNotice(sText, callback, asyncState);
+        }
+        
+        private object[] OnEndMgmtWriteNotice(System.IAsyncResult result) {
+            this.EndMgmtWriteNotice(result);
+            return null;
+        }
+        
+        private void OnMgmtWriteNoticeCompleted(object state) {
+            if ((this.MgmtWriteNoticeCompleted != null)) {
+                InvokeAsyncCompletedEventArgs e = ((InvokeAsyncCompletedEventArgs)(state));
+                this.MgmtWriteNoticeCompleted(this, new System.ComponentModel.AsyncCompletedEventArgs(e.Error, e.Cancelled, e.UserState));
+            }
+        }
+        
+        public void MgmtWriteNoticeAsync(string sText) {
+            this.MgmtWriteNoticeAsync(sText, null);
+        }
+        
+        public void MgmtWriteNoticeAsync(string sText, object userState) {
+            if ((this.onBeginMgmtWriteNoticeDelegate == null)) {
+                this.onBeginMgmtWriteNoticeDelegate = new BeginOperationDelegate(this.OnBeginMgmtWriteNotice);
+            }
+            if ((this.onEndMgmtWriteNoticeDelegate == null)) {
+                this.onEndMgmtWriteNoticeDelegate = new EndOperationDelegate(this.OnEndMgmtWriteNotice);
+            }
+            if ((this.onMgmtWriteNoticeCompletedDelegate == null)) {
+                this.onMgmtWriteNoticeCompletedDelegate = new System.Threading.SendOrPostCallback(this.OnMgmtWriteNoticeCompleted);
+            }
+            base.InvokeAsync(this.onBeginMgmtWriteNoticeDelegate, new object[] {
+                        sText}, this.onEndMgmtWriteNoticeDelegate, this.onMgmtWriteNoticeCompletedDelegate, userState);
+        }
+        
+        [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+        System.IAsyncResult ingenie.management.service.ManagementSoap.BeginMgmtWriteError(ingenie.management.service.MgmtWriteErrorRequest request, System.AsyncCallback callback, object asyncState) {
+            return base.Channel.BeginMgmtWriteError(request, callback, asyncState);
+        }
+        
+        [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+        private System.IAsyncResult BeginMgmtWriteError(string sEx, System.AsyncCallback callback, object asyncState) {
+            ingenie.management.service.MgmtWriteErrorRequest inValue = new ingenie.management.service.MgmtWriteErrorRequest();
+            inValue.Body = new ingenie.management.service.MgmtWriteErrorRequestBody();
+            inValue.Body.sEx = sEx;
+            return ((ingenie.management.service.ManagementSoap)(this)).BeginMgmtWriteError(inValue, callback, asyncState);
+        }
+        
+        [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+        ingenie.management.service.MgmtWriteErrorResponse ingenie.management.service.ManagementSoap.EndMgmtWriteError(System.IAsyncResult result) {
+            return base.Channel.EndMgmtWriteError(result);
+        }
+        
+        [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Advanced)]
+        private void EndMgmtWriteError(System.IAsyncResult result) {
+            ingenie.management.service.MgmtWriteErrorResponse retVal = ((ingenie.management.service.ManagementSoap)(this)).EndMgmtWriteError(result);
+        }
+        
+        private System.IAsyncResult OnBeginMgmtWriteError(object[] inValues, System.AsyncCallback callback, object asyncState) {
+            string sEx = ((string)(inValues[0]));
+            return this.BeginMgmtWriteError(sEx, callback, asyncState);
+        }
+        
+        private object[] OnEndMgmtWriteError(System.IAsyncResult result) {
+            this.EndMgmtWriteError(result);
+            return null;
+        }
+        
+        private void OnMgmtWriteErrorCompleted(object state) {
+            if ((this.MgmtWriteErrorCompleted != null)) {
+                InvokeAsyncCompletedEventArgs e = ((InvokeAsyncCompletedEventArgs)(state));
+                this.MgmtWriteErrorCompleted(this, new System.ComponentModel.AsyncCompletedEventArgs(e.Error, e.Cancelled, e.UserState));
+            }
+        }
+        
+        public void MgmtWriteErrorAsync(string sEx) {
+            this.MgmtWriteErrorAsync(sEx, null);
+        }
+        
+        public void MgmtWriteErrorAsync(string sEx, object userState) {
+            if ((this.onBeginMgmtWriteErrorDelegate == null)) {
+                this.onBeginMgmtWriteErrorDelegate = new BeginOperationDelegate(this.OnBeginMgmtWriteError);
+            }
+            if ((this.onEndMgmtWriteErrorDelegate == null)) {
+                this.onEndMgmtWriteErrorDelegate = new EndOperationDelegate(this.OnEndMgmtWriteError);
+            }
+            if ((this.onMgmtWriteErrorCompletedDelegate == null)) {
+                this.onMgmtWriteErrorCompletedDelegate = new System.Threading.SendOrPostCallback(this.OnMgmtWriteErrorCompleted);
+            }
+            base.InvokeAsync(this.onBeginMgmtWriteErrorDelegate, new object[] {
+                        sEx}, this.onEndMgmtWriteErrorDelegate, this.onMgmtWriteErrorCompletedDelegate, userState);
+        }
+        
         private System.IAsyncResult OnBeginOpen(object[] inValues, System.AsyncCallback callback, object asyncState) {
             return ((System.ServiceModel.ICommunicationObject)(this)).BeginOpen(callback, asyncState);
         }
@@ -658,6 +922,32 @@ namespace ingenie.management.service {
             public void EndRestartServices(System.IAsyncResult result) {
                 object[] _args = new object[0];
                 base.EndInvoke("RestartServices", _args, result);
+            }
+            
+            public System.IAsyncResult BeginMgmtWriteNotice(ingenie.management.service.MgmtWriteNoticeRequest request, System.AsyncCallback callback, object asyncState) {
+                object[] _args = new object[1];
+                _args[0] = request;
+                System.IAsyncResult _result = base.BeginInvoke("MgmtWriteNotice", _args, callback, asyncState);
+                return _result;
+            }
+            
+            public ingenie.management.service.MgmtWriteNoticeResponse EndMgmtWriteNotice(System.IAsyncResult result) {
+                object[] _args = new object[0];
+                ingenie.management.service.MgmtWriteNoticeResponse _result = ((ingenie.management.service.MgmtWriteNoticeResponse)(base.EndInvoke("MgmtWriteNotice", _args, result)));
+                return _result;
+            }
+            
+            public System.IAsyncResult BeginMgmtWriteError(ingenie.management.service.MgmtWriteErrorRequest request, System.AsyncCallback callback, object asyncState) {
+                object[] _args = new object[1];
+                _args[0] = request;
+                System.IAsyncResult _result = base.BeginInvoke("MgmtWriteError", _args, callback, asyncState);
+                return _result;
+            }
+            
+            public ingenie.management.service.MgmtWriteErrorResponse EndMgmtWriteError(System.IAsyncResult result) {
+                object[] _args = new object[0];
+                ingenie.management.service.MgmtWriteErrorResponse _result = ((ingenie.management.service.MgmtWriteErrorResponse)(base.EndInvoke("MgmtWriteError", _args, result)));
+                return _result;
             }
         }
     }
